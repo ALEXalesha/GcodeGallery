@@ -6,25 +6,29 @@
 
 // Типы линий движка -> наши группы и цвета (цвета - как у Orca по умолчанию).
 const KINDS = [
-  { id: 'outer', group: 'walls', color: '#ff7d38', engine: ['Outer wall'] },
-  { id: 'inner', group: 'walls', color: '#ffe64d', engine: ['Inner wall'] },
-  { id: 'overhang', group: 'walls', color: '#1f1fff', engine: ['Overhang wall'] },
-  { id: 'sparse', group: 'infill', color: '#b03029', engine: ['Sparse infill'] },
-  { id: 'solid', group: 'infill', color: '#9654cc', engine: ['Internal solid infill', 'Solid infill'] },
-  { id: 'top', group: 'infill', color: '#f04040', engine: ['Top surface'] },
+// Галерея (src/shared, SOURCE.md): добавлены имена PrusaSlicer, Cura и Bambu Studio.
+  { id: 'outer', group: 'walls', color: '#ff7d38', engine: ['Outer wall', 'External perimeter', 'WALL-OUTER'] },
+  { id: 'inner', group: 'walls', color: '#ffe64d', engine: ['Inner wall', 'Perimeter', 'WALL-INNER'] },
+  { id: 'overhang', group: 'walls', color: '#1f1fff', engine: ['Overhang wall', 'Overhang perimeter'] },
+  { id: 'sparse', group: 'infill', color: '#b03029', engine: ['Sparse infill', 'Internal infill', 'FILL'] },
+  { id: 'solid', group: 'infill', color: '#9654cc', engine: ['Internal solid infill', 'Solid infill', 'SKIN'] },
+  { id: 'top', group: 'infill', color: '#f04040', engine: ['Top surface', 'Top solid infill'] },
   { id: 'bottom', group: 'infill', color: '#665cc7', engine: ['Bottom surface'] },
-  { id: 'bridge', group: 'infill', color: '#4d80ba', engine: ['Bridge', 'Internal Bridge'] },
-  { id: 'gap', group: 'infill', color: '#e8e8e8', engine: ['Gap infill'] },
+  { id: 'bridge', group: 'infill', color: '#4d80ba', engine: ['Bridge', 'Internal Bridge', 'Bridge infill'] },
+  { id: 'gap', group: 'infill', color: '#e8e8e8', engine: ['Gap infill', 'Gap fill'] },
   { id: 'ironing', group: 'infill', color: '#ff8c69', engine: ['Ironing'] },
-  { id: 'support', group: 'support', color: '#00d84a', engine: ['Support', 'Support transition'] },
-  { id: 'supportIf', group: 'support', color: '#008000', engine: ['Support interface'] },
-  { id: 'skirt', group: 'adhesion', color: '#00876e', engine: ['Skirt', 'Brim'] },
-  { id: 'tower', group: 'other', color: '#b3e3ab', engine: ['Prime tower', 'Wipe tower'] },
+  { id: 'support', group: 'support', color: '#00d84a', engine: ['Support', 'Support transition', 'Support material', 'SUPPORT', 'SUPPORT-INFILL'] },
+  { id: 'supportIf', group: 'support', color: '#008000', engine: ['Support interface', 'Support material interface', 'SUPPORT-INTERFACE'] },
+  { id: 'skirt', group: 'adhesion', color: '#00876e', engine: ['Skirt', 'Brim', 'Skirt/Brim', 'SKIRT'] },
+  { id: 'tower', group: 'other', color: '#b3e3ab', engine: ['Prime tower', 'Wipe tower', 'PRIME-TOWER'] },
   { id: 'custom', group: 'other', color: '#5ed194', engine: ['Custom'] },
   { id: 'travel', group: 'travel', color: '#5875c8', engine: [] },
 ];
 const BY_ENGINE = new Map();
 KINDS.forEach((k, i) => k.engine.forEach((e) => BY_ENGINE.set(e, i)));
+// Метки начала слоя: Orca/Elegoo/Prusa/Slicer CC, Bambu Studio, Cura. Порядок - приоритет.
+const LAYER_MARKS = [';LAYER_CHANGE', '; CHANGE_LAYER', ';LAYER:'];
+const MIN_LAYER = 0.05;      // слои по Z без меток: ниже этого роста - тот же слой
 const CUSTOM = KINDS.findIndex((k) => k.id === 'custom');
 const TRAVEL = KINDS.findIndex((k) => k.id === 'travel');
 
@@ -65,11 +69,22 @@ function parseGcodePreview(text, { maxSegments = 12e6 } = {}) {
   let kind = CUSTOM;
   let layer = -1;
   let total = 0;
+  // Галерея: метка слоя своего слайсера (первая найденная), без меток - слой по росту Z
+  // выдавленной линии; высота слоя без ;Z: - по первой выдавленной линии слоя.
+  const marker = LAYER_MARKS.find((m) => text.indexOf(m) >= 0) || '';
+  let zKnown = false;
+  const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+  const grow = (px, py, pz) => {
+    if (px < min[0]) min[0] = px; if (px > max[0]) max[0] = px;
+    if (py < min[1]) min[1] = py; if (py > max[1]) max[1] = py;
+    if (pz < min[2]) min[2] = pz; if (pz > max[2]) max[2] = pz;
+  };
   const closeLayer = () => { if (layer >= 0) for (let k = 0; k < KINDS.length; k++) layerEnds[k][layer] = segs[k].n / 6; };
   const add = (k, x0, y0, z0, x1, y1, z1) => {
     if (total >= maxSegments) return;
     segs[k].push6(x0, y0, z0, x1, y1, z1);
     total++;
+    if (k !== TRAVEL) { grow(x0, y0, z0); grow(x1, y1, z1); }
     const len = Math.hypot(x1 - x0, y1 - y0, z1 - z0);
     if (f > 0) seconds[k] += len / (f / 60);
   };
@@ -84,8 +99,12 @@ function parseGcodePreview(text, { maxSegments = 12e6 } = {}) {
     const c0 = line.charCodeAt(0);
     if (c0 === 59 /* ; */) {
       if (line.startsWith(';TYPE:')) kind = kindOf(line.slice(6));
-      else if (line.startsWith(';LAYER_CHANGE')) { closeLayer(); layer++; layers.push({ z }); }   // всё до первого слоя (полоска прочистки) - в первый слой
-      else if (line.startsWith(';Z:') && layer >= 0) { const v = Number(line.slice(3)); if (Number.isFinite(v)) layers[layer].z = v; }
+      else if (line.startsWith('; FEATURE:')) kind = kindOf(line.slice(10));
+      else if (marker && line.startsWith(marker) && (marker !== ';LAYER:' || /^;LAYER:-?\d/.test(line))) { closeLayer(); layer++; layers.push({ z }); zKnown = false; }   // всё до первого слоя (полоска прочистки) - в первый слой
+      else if ((line.startsWith(';Z:') || line.startsWith('; Z_HEIGHT:')) && layer >= 0) {
+        const v = Number(line.slice(line.indexOf(':') + 1));
+        if (Number.isFinite(v)) { layers[layer].z = v; zKnown = true; }
+      }
       continue;
     }
     const sc = line.indexOf(';');
@@ -104,6 +123,10 @@ function parseGcodePreview(text, { maxSegments = 12e6 } = {}) {
         if (ne !== null) { de = absE ? ne - e : ne; e = absE ? ne : e + ne; }
         const moved = tx !== x || ty !== y;
         const k = de > 0 && moved ? kind : TRAVEL;
+        if (k !== TRAVEL) {
+          if (!marker && (layer < 0 || tz >= layers[layer].z + MIN_LAYER)) { closeLayer(); layer++; layers.push({ z: tz }); zKnown = true; }
+          else if (layer >= 0 && !zKnown) { layers[layer].z = tz; zKnown = true; }
+        }
         if (moved) {
           if (cmd === 'G2' || cmd === 'G3') {
             const ci = num(line, 'I') || 0, cj = num(line, 'J') || 0;
@@ -145,7 +168,8 @@ function parseGcodePreview(text, { maxSegments = 12e6 } = {}) {
     layers,
     data,
     truncated: total >= maxSegments,
+    bounds: min[0] <= max[0] ? { min, max } : null,
   };
 }
 
-module.exports = { parseGcodePreview, KINDS };
+module.exports = { parseGcodePreview, KINDS, LAYER_MARKS };

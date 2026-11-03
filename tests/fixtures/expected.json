@@ -1,0 +1,326 @@
+{
+  "orca.gcode": {
+    "slicer": "OrcaSlicer",
+    "slicerVersion": "2.1.1",
+    "timeSec": 3723,
+    "filamentType": "PLA",
+    "nozzleTemp": 220,
+    "bedTemp": 55,
+    "layerHeight": 0.2,
+    "layers": 20,
+    "printer": "Elegoo Centauri Carbon 0.4 nozzle",
+    "dims": [
+      30,
+      30,
+      4
+    ],
+    "slicedAt": "2024-05-01T10:00:00",
+    "filamentMm": 1234.56,
+    "filamentG": 3.69,
+    "filamentColor": "#FF8000",
+    "nozzle": 0.4,
+    "bed": {
+      "x": 256,
+      "y": 256,
+      "z": 256
+    },
+    "fits": true,
+    "thumbs": 1
+  },
+  "elegoo.gcode": {
+    "slicer": "ElegooSlicer",
+    "slicerVersion": "1.1.6.0",
+    "timeSec": 7205,
+    "filamentType": "PETG",
+    "nozzleTemp": 250,
+    "bedTemp": 80,
+    "layerHeight": 0.2,
+    "layers": 30,
+    "printer": "Elegoo Centauri Carbon 0.4 nozzle",
+    "dims": [
+      40,
+      34,
+      6
+    ],
+    "slicedAt": "2025-03-14T18:30:00",
+    "filamentMm": 4321.5,
+    "filamentG": 13.1,
+    "filamentColor": "#1E90FF",
+    "nozzle": 0.4,
+    "bed": {
+      "x": 256,
+      "y": 256,
+      "z": 256
+    },
+    "fits": true,
+    "thumbs": 1
+  },
+  "slicercc.gcode": {
+    "slicer": "Slicer CC",
+    "slicerVersion": "0.2.0",
+    "timeSec": 2700,
+    "filamentType": "PLA",
+    "nozzleTemp": 215,
+    "bedTemp": 60,
+    "layerHeight": 0.2,
+    "layers": 15,
+    "printer": "Elegoo Centauri Carbon 0.4 nozzle",
+    "dims": [
+      26,
+      26,
+      3
+    ],
+    "slicedAt": "2026-10-20T12:00:00",
+    "engine": "ElegooSlicer",
+    "filamentMm": 900,
+    "filamentG": 2.69,
+    "filamentColor": "#FFFFFF",
+    "nozzle": 0.4,
+    "bed": {
+      "x": 256,
+      "y": 256,
+      "z": 256
+    },
+    "fits": true,
+    "thumbs": 1
+  },
+  "prusa.gcode": {
+    "slicer": "PrusaSlicer",
+    "slicerVersion": "2.8.1",
+    "timeSec": 1510,
+    "filamentType": "PETG",
+    "nozzleTemp": 240,
+    "bedTemp": 85,
+    "layerHeight": 0.15,
+    "layers": 20,
+    "printer": "Original Prusa MK4 0.4 nozzle",
+    "dims": [
+      30,
+      30,
+      3
+    ],
+    "slicedAt": "2024-10-21T06:38:01Z",
+    "filamentMm": 986.61,
+    "filamentG": 3.01,
+    "filamentColor": "#FF8000",
+    "nozzle": 0.4,
+    "bed": {
+      "x": 250,
+      "y": 210,
+      "z": 220
+    },
+    "fits": true,
+    "thumbs": 2
+  },
+  "bambu.gcode": {
+    "slicer": "BambuStudio",
+    "slicerVersion": "01.09.00.70",
+    "timeSec": 4150,
+    "filamentType": "PETG",
+    "nozzleTemp": 250,
+    "bedTemp": 70,
+    "layerHeight": 0.2,
+    "layers": 20,
+    "printer": "Bambu Lab X1 Carbon 0.4 nozzle",
+    "dims": [
+      34,
+      30,
+      4
+    ],
+    "filamentMm": 2222.22,
+    "filamentG": 6.75,
+    "filamentColor": "#00AE42",
+    "nozzle": 0.4,
+    "bed": {
+      "x": 256,
+      "y": 256,
+      "z": 250
+    },
+    "fits": true,
+    "slicedAt": null,
+    "thumbs": 1
+  },
+  "cura.gcode": {
+    "slicer": "Cura",
+    "slicerVersion": "5.6.0",
+    "timeSec": 3723,
+    "filamentType": "PLA",
+    "nozzleTemp": 200,
+    "bedTemp": 60,
+    "layerHeight": 0.2,
+    "layers": 20,
+    "printer": "Creality Ender-3",
+    "dims": [
+      30,
+      30,
+      4
+    ],
+    "filamentMm": 1500,
+    "filamentG": 4.47,
+    "gramsEstimated": true,
+    "bed": {
+      "x": 220,
+      "y": 220,
+      "z": 250
+    },
+    "fits": true,
+    "slicedAt": null,
+    "thumbs": 1
+  },
+  "cura-griffin.gcode": {
+    "slicer": "Cura",
+    "slicerVersion": "5.6.0",
+    "timeSec": 5000,
+    "filamentType": "PLA",
+    "nozzleTemp": 215,
+    "bedTemp": 60,
+    "layerHeight": 0.2,
+    "layers": 10,
+    "printer": "Ultimaker S5",
+    "dims": [
+      30,
+      30,
+      2
+    ],
+    "filamentMm": 391.89,
+    "nozzle": 0.4,
+    "bed": null,
+    "fits": null,
+    "slicedAt": null,
+    "thumbs": 0
+  },
+  "prusa.bgcode": {
+    "slicer": "PrusaSlicer",
+    "slicerVersion": "2.8.1",
+    "timeSec": 1510,
+    "filamentType": "PETG",
+    "nozzleTemp": 240,
+    "bedTemp": 85,
+    "layerHeight": 0.15,
+    "layers": 20,
+    "printer": "Original Prusa MK4 0.4 nozzle",
+    "dims": [
+      30,
+      30,
+      3
+    ],
+    "slicedAt": null,
+    "filamentMm": 986.61,
+    "filamentG": 3.01,
+    "filamentColor": "#FF8000",
+    "nozzle": 0.4,
+    "bed": {
+      "x": 250,
+      "y": 210,
+      "z": 220
+    },
+    "fits": true,
+    "thumbs": 2
+  },
+  "prusa-plain.bgcode": {
+    "slicer": "PrusaSlicer",
+    "slicerVersion": "2.7.4",
+    "timeSec": 1510,
+    "filamentType": "PLA",
+    "filamentMm": 986.61,
+    "filamentG": 3.01,
+    "printer": "Original Prusa MINI",
+    "layers": 20,
+    "layerHeight": 0.15,
+    "bed": {
+      "x": 180,
+      "y": 180,
+      "z": 180
+    },
+    "fits": true,
+    "dims": [
+      30,
+      30,
+      3
+    ],
+    "thumbs": 0
+  },
+  "bambu.gcode.3mf": {
+    "slicer": "BambuStudio",
+    "slicerVersion": "01.09.00.70",
+    "timeSec": 4150,
+    "filamentType": "PETG",
+    "nozzleTemp": 250,
+    "bedTemp": 70,
+    "layerHeight": 0.2,
+    "layers": 20,
+    "printer": "Bambu Lab X1 Carbon 0.4 nozzle",
+    "dims": [
+      34,
+      30,
+      4
+    ],
+    "filamentMm": 2222.22,
+    "filamentG": 6.75,
+    "filamentColor": "#00AE42",
+    "nozzle": 0.4,
+    "bed": {
+      "x": 256,
+      "y": 256,
+      "z": 250
+    },
+    "fits": true,
+    "slicedAt": null,
+    "thumbs": 2,
+    "plates": 1
+  },
+  "plates2.gcode.3mf": {
+    "slicer": "BambuStudio",
+    "timeSec": 600,
+    "filamentG": 1.5,
+    "filamentMm": 500,
+    "filamentType": "PLA",
+    "filamentColor": "#FFFFFF",
+    "plates": 2,
+    "layers": 5,
+    "dims": [
+      20,
+      20,
+      1
+    ],
+    "thumbs": 0
+  },
+  "cube.stl": {
+    "kind": "stl",
+    "triangles": 12,
+    "dims": [
+      20,
+      20,
+      20
+    ]
+  },
+  "cube-ascii.stl": {
+    "kind": "stl",
+    "triangles": 12,
+    "dims": [
+      10,
+      10,
+      30
+    ]
+  },
+  "model.3mf": {
+    "kind": "3mf",
+    "triangles": 12,
+    "dims": [
+      15,
+      15,
+      5
+    ]
+  },
+  "broken.bgcode": {
+    "error": "bad-bgcode"
+  },
+  "notzip.3mf": {
+    "error": "bad-zip"
+  },
+  "empty.gcode": {
+    "kind": "gcode",
+    "layers": 0,
+    "dims": null
+  }
+}

@@ -21,6 +21,7 @@
 | `upload.js` | `src/core/upload.js` | без изменений |
 | `send.js` | `src/core/send.js` | без изменений. Галерея никогда не зовёт `sendToPrinter` напрямую: только через `src/core/printing.js`, где старт печати - отдельный шаг по кнопке |
 | `discovery.js` | `src/core/discovery.js` | без изменений |
+| `names.js` | `src/core/names.js` | без изменений (безопасное имя файла на принтере) |
 
 Не взяты: `project3mf.js` (пишет 3MF для движка нарезки - галерее не нужен), `src/renderer/preview.js` (легенда
 слоёв привязана к разметке окна слайсера; в галерее своя, `src/renderer/viewer.js`, на тех же данных
