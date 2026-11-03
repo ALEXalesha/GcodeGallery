@@ -1,0 +1,33 @@
+{
+  "name": "gcode-gallery",
+  "productName": "GcodeGallery",
+  "version": "0.1.0",
+  "description": "A folder of G-code files as a gallery of 3D toolpath previews with print time, filament, printer and size",
+  "author": "ALEXalesha",
+  "license": "MIT",
+  "private": true,
+  "main": "electron/main.js",
+  "homepage": "https://github.com/ALEXalesha/GcodeGallery",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test --test-concurrency=1 \"tests/core/*.test.js\"",
+    "coverage": "c8 --config .c8rc.json node --test --test-concurrency=1 \"tests/core/*.test.js\"",
+    "test:app": "playwright test --config=playwright.app.config.js --workers=1",
+    "mutate": "node tools/mutate.js",
+    "fixtures": "node tools/make-fixtures.js",
+    "shots": "node tools/screenshots.js",
+    "vendor": "node tools/vendor-three.js",
+    "dist": "electron-builder --win portable nsis --x64"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "c8": "^10.1.3",
+    "electron": "43.0.0",
+    "electron-builder": "^26.15.3",
+    "fast-check": "^3.23.2",
+    "three": "0.170.0"
+  }
+}

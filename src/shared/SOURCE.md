@@ -1,0 +1,34 @@
+# src/shared - общий код со Slicer CC
+
+Эти файлы взяты из репозитория [ALEXalesha/Slicer](https://github.com/ALEXalesha/Slicer), папка `src/core/`,
+коммит `f84735542428f2dcc730183b8723566838896c55` (25.10.2026). Цель - один общий модуль для слайсера и галереи:
+когда лента станет вкладкой в слайсере, слайсер будет брать эти файлы отсюда (или галерея - оттуда), а не держать
+две разные копии.
+
+Правило: в общих файлах только добавления, которые не меняют поведение для слайсера. Всё, что нужно только
+галерее, лежит в `src/core/`.
+
+| файл | откуда | что изменено |
+| --- | --- | --- |
+| `gcode-preview.js` | `src/core/gcode-preview.js` | добавлено (поведение для Orca/Elegoo/Slicer CC прежнее): типы линий PrusaSlicer, Cura и Bambu; метки слоёв Cura (`;LAYER:`) и Bambu (`; CHANGE_LAYER`, `; Z_HEIGHT:`), `; FEATURE:` Bambu; слои по высоте Z для файлов без меток; высота слоя без `;Z:` - по первой выдавленной линии; габариты выдавленного (`bounds`) |
+| `gcode-info.js` | `src/core/gcode-info.js` | без изменений |
+| `geom.js` | `src/core/geom.js` | без изменений |
+| `zip.js` | `src/core/zip.js` | без изменений |
+| `mesh.js` | `src/core/mesh.js` | без изменений (`.3mf` и `.stl` без нарезки) |
+| `sdcp.js` | `src/core/sdcp.js` | без изменений |
+| `printer-control.js` | `src/core/printer-control.js` | без изменений (нужен `sdcp.js`: проверка запросов 401/402/403) |
+| `printer-client.js` | `src/core/printer-client.js` | без изменений |
+| `upload.js` | `src/core/upload.js` | без изменений |
+| `send.js` | `src/core/send.js` | без изменений. Галерея никогда не зовёт `sendToPrinter` напрямую: только через `src/core/printing.js`, где старт печати - отдельный шаг по кнопке |
+| `discovery.js` | `src/core/discovery.js` | без изменений |
+
+Не взяты: `project3mf.js` (пишет 3MF для движка нарезки - галерее не нужен), `src/renderer/preview.js` (легенда
+слоёв привязана к разметке окна слайсера; в галерее своя, `src/renderer/viewer.js`, на тех же данных
+`parseGcodePreview`).
+
+Законы этих файлов тоже перенесены: `tests/core/shared-*.test.js` (из `tests/core/*.test.js` слайсера; из закона
+управления принтером убраны три проверки сеанса главного процесса слайсера - его в галерее нет) и поддельный
+принтер `tests/support/fake-printer.js`.
+
+Как обновить: скопировать файл из слайсера поверх, повторить изменения из таблицы (если они ещё не там), прогнать
+`npm test`.
