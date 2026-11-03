@@ -1,0 +1,6 @@
+{
+  "all": true,
+  "include": ["src/core/**/*.js", "src/shared/**/*.js", "src/gallery/filter.js", "src/gallery/queue.js", "src/gallery/format.js", "src/gallery/i18n.js", "electron/window-state.js", "electron/library.js"],
+  "reporter": ["text", "json-summary"],
+  "reports-dir": "coverage"
+}
