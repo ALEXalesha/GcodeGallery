@@ -29,7 +29,7 @@ export class Viewer {
     el.info = h('dl', { class: 'gg-lines gg-vinfo' });
     el.fav = h('input', { type: 'checkbox', onchange: () => this.mark({ favorite: el.fav.checked }) });
     el.printed = h('select', { class: 'gg-select', onchange: () => this.mark({ printed: el.printed.value, printedAt: el.printed.value === 'yes' ? Date.now() : undefined }) },
-      h('option', { value: '', 'data-i18n': 'f.printed.any' }), h('option', { value: 'yes', 'data-i18n': 'card.printedYes' }), h('option', { value: 'no', 'data-i18n': 'card.printedNo' }));
+      h('option', { value: '', 'data-i18n': 'v.printed.none' }), h('option', { value: 'yes', 'data-i18n': 'card.printedYes' }), h('option', { value: 'no', 'data-i18n': 'card.printedNo' }));
     el.tags = h('input', { type: 'text', class: 'gg-input', 'data-i18n-placeholder': 'v.tags', onchange: () => this.mark({ tags: el.tags.value.split(',') }) });
     el.note = h('textarea', { class: 'gg-input gg-note', rows: 3, 'data-i18n-placeholder': 'v.note', onchange: () => this.mark({ note: el.note.value }) });
     el.settingsHead = h('summary', {});

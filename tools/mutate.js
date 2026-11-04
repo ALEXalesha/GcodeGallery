@@ -67,6 +67,7 @@ const MUTANTS = [
   { name: 'window: cache not saved on quit', app: 'tests/app/gallery.spec.js', grep: 'second start', file: 'electron/main.js', from: "app.on('before-quit', dispose);", to: '', also: [["app.on('window-all-closed', () => { dispose(); app.quit(); });", "app.on('window-all-closed', () => { app.quit(); });"]] },
   { name: 'window: STL filter does nothing', app: 'tests/app/gallery.spec.js', grep: 'search, sort', file: 'src/gallery/filter.js', from: 'if (f.kinds && f.kinds.length && !f.kinds.includes(item.kind)) return false;', to: '' },
   { name: 'look: white text on the plain accent', app: 'tests/app/look.spec.js', grep: 'five themes', file: 'src/gallery/gallery.css', from: '--gg-on-accent: color-mix(in srgb, var(--accent) 70%, #000);', to: '--gg-on-accent: var(--accent);' },
+  { name: 'look: plain red warning on dark glass', app: 'tests/app/look.spec.js', grep: 'five themes', file: 'src/gallery/gallery.css', from: 'color: var(--gg-warn, color-mix(in srgb, var(--danger) 72%, #fff));', to: 'color: var(--danger);' },
   { name: 'look: card caption runs out of a narrow card', app: 'tests/app/look.spec.js', grep: 'window 420x760', file: 'src/gallery/gallery.css', from: '.gg-line dd { margin: 0; min-width: 0; overflow: hidden;', to: '.gg-line dd { margin: 0; min-width: max-content; overflow: visible;' },
   { name: 'look: English toolbar keeps Russian', app: 'tests/app/look.spec.js', grep: 'English', file: 'src/gallery/i18n.js', from: "'top.folder': 'Folder…',", to: "'top.folder': 'Папка…'," },
 ];

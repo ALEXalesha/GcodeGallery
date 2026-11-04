@@ -4,7 +4,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { launch, sampleFolder, openFolder } = require('../tests/app/helpers');
+const { launch, sampleFolder, openFolder, tmp } = require('../tests/app/helpers');
 
 const OUT = path.join(__dirname, '..', 'docs', 'screenshots');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -17,8 +17,10 @@ async function capture(app, name) {
 
 async function run(lang, { width = 1280, height = 820 } = {}) {
   const { app, win } = await launch({ env: { GG_TEST_SHOW: '1' }, width, height });
-  const dir = sampleFolder();
-  for (const n of ['broken.bgcode', 'notzip.3mf', 'empty.gcode']) fs.unlinkSync(path.join(dir, n));
+  const src = sampleFolder();
+  const dir = path.join(tmp('gg-shots-'), lang === 'ru' ? 'Печать' : 'Prints');
+  fs.mkdirSync(dir);
+  for (const n of fs.readdirSync(src)) if (!['broken.bgcode', 'notzip.3mf', 'empty.gcode'].includes(n)) fs.copyFileSync(path.join(src, n), path.join(dir, n));
   await win.evaluate((l) => window.galleryApp.setLang(l), lang);
   await openFolder(win, dir);
   await win.evaluate(async (d) => {

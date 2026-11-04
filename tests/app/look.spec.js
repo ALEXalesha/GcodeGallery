@@ -33,14 +33,16 @@ function contrastReport() {
   };
   const out = [];
   const pick = { '.gg-primary': 4.5, '.gg-seg.gg-on': 4.5, '.gg-name': 4.5, '.gg-line dd': 4.5, '.gg-line dt': 3, '.gg-bar .gg-btn': 4.5, '.gg-folder': 3, '.gg-status': 3, '.gg-kind': 4.5, '.app-title': 4.5, '.gg-search': 4.5 };
+  pick['.gg-warn'] = 4.5;
   for (const [sel, need] of Object.entries(pick)) {
-    const el = [...document.querySelectorAll(sel)].find((e) => e.offsetParent && (e.textContent.trim() || e.value !== undefined));
-    if (!el) continue;
+    // Все видимые элементы, а не первый: худший из них и есть ответ (порядок плиток бывает разный).
+    for (const el of [...document.querySelectorAll(sel)].filter((e) => e.offsetParent && (e.textContent.trim() || e.value !== undefined)).slice(0, 60)) {
     const fg = parse(getComputedStyle(el).color);
     const bg = bgOf(el);
     const col = over(fg, bg);
     const [a, b] = [lum(col), lum(bg)].sort((x, y) => y - x);
-    out.push({ sel, ratio: Math.round(((a + 0.05) / (b + 0.05)) * 100) / 100, need });
+    out.push({ sel, ratio: Math.round(((a + 0.05) / (b + 0.05)) * 100) / 100, need, text: el.textContent.slice(0, 30) });
+    }
   }
   return out;
 }
@@ -74,7 +76,7 @@ test('all five themes are readable: text contrast on cards, buttons and labels',
       await win.evaluate((th) => window.galleryApp.setTheme(th), theme);
       const rep = await win.evaluate(contrastReport);
       expect(rep.length).toBeGreaterThanOrEqual(8);
-      for (const r of rep) expect(r.ratio, `${theme} ${r.sel} ${r.ratio}`).toBeGreaterThanOrEqual(r.need);
+      for (const r of rep) expect(r.ratio, `${theme} ${r.sel} ${r.ratio} "${r.text}"`).toBeGreaterThanOrEqual(r.need);
       expect(await win.evaluate(layoutReport), theme).toEqual([]);
     }
   } finally { await app.close(); }

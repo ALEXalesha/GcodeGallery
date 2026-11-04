@@ -17,6 +17,7 @@
     "fixtures": "node tools/make-fixtures.js",
     "shots": "node tools/screenshots.js",
     "vendor": "node tools/vendor-three.js",
+    "icon": "node tools/make-icon.js",
     "dist": "electron-builder --win portable nsis --x64"
   },
   "dependencies": {
@@ -29,5 +30,55 @@
     "electron-builder": "^26.15.3",
     "fast-check": "^3.23.2",
     "three": "0.170.0"
+  },
+  "build": {
+    "appId": "com.alexalesha.gcodegallery",
+    "productName": "GcodeGallery",
+    "copyright": "Copyright (c) 2026 ALEXalesha",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**",
+      "src/**",
+      "assets/icon.png",
+      "LICENSE",
+      "!**/*.map",
+      "!src/**/SOURCE.md"
+    ],
+    "electronLanguages": [
+      "en-US",
+      "ru"
+    ],
+    "compression": "maximum",
+    "win": {
+      "icon": "assets/icon.png",
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "portable": {
+      "artifactName": "GcodeGallery-${version}-Portable.${ext}"
+    },
+    "nsis": {
+      "artifactName": "GcodeGallery-${version}-Setup.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "GcodeGallery"
+    }
   }
 }
