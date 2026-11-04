@@ -72,6 +72,15 @@ const MUTANTS = [
   { name: 'look: English toolbar keeps Russian', app: 'tests/app/look.spec.js', grep: 'English', file: 'src/gallery/i18n.js', from: "'top.folder': 'Folder…',", to: "'top.folder': 'Папка…'," },
 ];
 
+// Если прошлый прогон убили посреди мутанта, файл остался испорченным: копия лежит в .tmp - вернуть.
+const BACKUP = path.join(ROOT, '.tmp', 'mutant-backup.json');
+if (fs.existsSync(BACKUP)) {
+  const b = JSON.parse(fs.readFileSync(BACKUP, 'utf8'));
+  fs.writeFileSync(path.join(ROOT, b.file), b.text);
+  fs.unlinkSync(BACKUP);
+  console.log('restored ' + b.file + ' after an interrupted run');
+}
+
 const args = process.argv.slice(2);
 const coreOnly = args.includes('--core');
 const filter = args.find((a) => !a.startsWith('--')) || '';
@@ -92,6 +101,8 @@ for (const m of MUTANTS) {
   }
   if (bad) { missed.push(m.name + ' (pattern)'); continue; }
   try {
+    fs.mkdirSync(path.dirname(BACKUP), { recursive: true });
+    fs.writeFileSync(BACKUP, JSON.stringify({ file: m.file, text: orig }));
     fs.writeFileSync(file, text);
     const cmd = m.app
       ? [path.join(ROOT, 'node_modules', '@playwright', 'test', 'cli.js'), 'test', '--config=playwright.app.config.js', '--workers=1', '--retries=0', m.app, '-g', m.grep]
@@ -101,6 +112,7 @@ for (const m of MUTANTS) {
     else { console.log(`!!  ${m.name}: tests stayed green`); missed.push(m.name); }
   } finally {
     fs.writeFileSync(file, orig);
+    try { fs.unlinkSync(BACKUP); } catch { /* нет копии */ }
   }
 }
 console.log(`${caught}/${total} mutants caught`);
