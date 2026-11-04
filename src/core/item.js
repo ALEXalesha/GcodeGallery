@@ -57,8 +57,9 @@ function processBuffer(buf, file, { budget = 150000, detail = false, maxSegments
       timeByKind: Object.fromEntries(preview.kinds.filter((k) => k.seconds > 0 && k.id !== 'travel').map((k) => [k.id, k.seconds])),
     });
     if (!detail) delete info.settings;
-    if (info.timeSec === null && preview.kinds.length) {
-      info.timeSec = preview.kinds.reduce((s, k) => s + k.seconds, 0);
+    const moving = preview.kinds.reduce((s, k) => s + k.seconds, 0);
+    if (info.timeSec === null && moving > 0) {
+      info.timeSec = moving;
       info.timeEstimated = true;
     }
     view = compactPath(preview, { budget });

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GcodeGallery</title>
+  <link rel="stylesheet" href="themes.css">
+  <link rel="stylesheet" href="../gallery/gallery.css">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="app-head">
+    <h1 class="app-title" data-i18n="app.title">Галерея G-code</h1>
+    <button id="settings-btn" class="gg-btn" data-i18n="top.settings">Настройки</button>
+  </header>
+  <main id="gallery" class="app-main"></main>
+  <div id="settings" class="gg-modal" role="dialog" aria-modal="true" hidden>
+    <div class="gg-modal-card">
+      <h2 data-i18n="s.title">Настройки</h2>
+      <div class="app-form">
+        <label class="gg-field"><span data-i18n="s.theme">Тема</span><select id="s-theme" class="gg-select"></select></label>
+        <label class="gg-field"><span data-i18n="s.lang">Язык</span><select id="s-lang" class="gg-select"><option value="ru">Русский</option><option value="en">English</option></select></label>
+        <label class="gg-field"><span data-i18n="s.price">Цена катушки</span><input id="s-price" class="gg-input" type="number" min="0" step="any"></label>
+        <label class="gg-field"><span data-i18n="s.grams">Вес катушки, г</span><input id="s-grams" class="gg-input" type="number" min="1" step="1"></label>
+        <label class="gg-field"><span data-i18n="s.currency">Валюта</span><input id="s-currency" class="gg-input" type="text" maxlength="4"></label>
+        <label class="gg-field"><span data-i18n="s.printer">Принтер Elegoo (адрес)</span><input id="s-host" class="gg-input" type="text" data-i18n-placeholder="p.host"></label>
+      </div>
+      <div class="gg-row gg-end"><button id="s-close" class="gg-btn gg-primary" data-i18n="s.close">Готово</button></div>
+    </div>
+  </div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

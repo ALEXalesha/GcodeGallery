@@ -321,6 +321,7 @@
   "empty.gcode": {
     "kind": "gcode",
     "layers": 0,
-    "dims": null
+    "dims": null,
+    "timeSec": null
   }
 }

@@ -127,7 +127,7 @@ function main() {
   write('empty.gcode', Buffer.alloc(0));
   expected['broken.bgcode'] = { error: 'bad-bgcode' };
   expected['notzip.3mf'] = { error: 'bad-zip' };
-  expected['empty.gcode'] = { kind: 'gcode', layers: 0, dims: null };
+  expected['empty.gcode'] = { kind: 'gcode', layers: 0, dims: null, timeSec: null };
 
   fs.writeFileSync(path.join(DIR, 'expected.json'), JSON.stringify(expected, null, 2) + '\n');
   console.log(Object.keys(expected).length + ' fixtures in ' + DIR);

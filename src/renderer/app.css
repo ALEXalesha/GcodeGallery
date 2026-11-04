@@ -1,0 +1,13 @@
+/* Оболочка окна вокруг ленты: заголовок и настройки. */
+html, body { margin: 0; height: 100%; }
+body { background: var(--app-bg); background-color: var(--app-base); color: var(--text); font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; display: flex; flex-direction: column; overflow: hidden; }
+[hidden] { display: none !important; }
+.app-head { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--glass-border); }
+.app-title { flex: 1; margin: 0; font-size: 15px; font-weight: 600; letter-spacing: 0.2px; }
+.app-main { flex: 1; min-height: 0; position: relative; }
+.app-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; margin-top: 10px; }
+#settings { position: fixed; z-index: 50; }
+@media (max-width: 480px) { .app-form { grid-template-columns: 1fr; } }
+/* Светлая тема: стекло почти белое, иначе подписи на светлом фоне бледнеют. */
+:root[data-theme="light"] { --success: #08694f; --danger: #c62828; }
+:root[data-theme="light"] .gg-card, :root[data-theme="light"] .gg-modal-card, :root[data-theme="light"] .gg-legend { background: rgba(255, 255, 255, 0.92); }

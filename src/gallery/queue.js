@@ -11,6 +11,7 @@ export class PreviewQueue {
     this.pending = new Map();     // key -> {order, visible}
     this.active = new Set();
     this.done = new Set();
+    this.again = new Set();     // поменялись во время разбора - разобрать ещё раз
     this.seq = 0;
     this.paused = false;
   }
@@ -33,10 +34,10 @@ export class PreviewQueue {
   }
 
   /** Файл изменился - сделать заново. */
-  invalidate(key) { this.done.delete(key); this.add([key]); }
+  invalidate(key) { if (this.active.has(key)) this.again.add(key); this.done.delete(key); this.add([key]); }
 
   /** Файл пропал из папки. */
-  remove(key) { this.pending.delete(key); this.done.delete(key); }
+  remove(key) { this.pending.delete(key); this.done.delete(key); this.again.delete(key); }
 
   next() {
     let best = null, bestP = null;
@@ -57,10 +58,11 @@ export class PreviewQueue {
 
   _finish(k, r, e) {
     this.active.delete(k);
-    this.done.add(k);
+    if (this.again.delete(k)) this.pending.set(k, { order: this.seq++, visible: false });
+    else this.done.add(k);
     try { this.onDone(k, r, e); } finally { this.pump(); }
   }
 
   get idle() { return this.active.size === 0 && this.pending.size === 0; }
-  clear() { this.pending.clear(); this.done.clear(); }
+  clear() { this.pending.clear(); this.done.clear(); this.again.clear(); }
 }

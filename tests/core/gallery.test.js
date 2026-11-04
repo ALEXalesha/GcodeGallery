@@ -118,6 +118,15 @@ test('queue: invalidate runs again, remove drops, failures do not stop the queue
   q.invalidate('a');
   for (let i = 0; i < 50 && !q.idle; i++) await new Promise((r) => setTimeout(r, 1));
   assert.deepStrictEqual(runs, ['a', 'bad', 'b', 'a']);
+  let release;
+  const slow = new Q.PreviewQueue({ limit: 1, run: (k) => { runs.push('slow:' + k); return new Promise((r) => { release = r; }); } });
+  slow.add(['x']);
+  await new Promise((r) => setTimeout(r, 1));
+  slow.invalidate('x');                          // файл поменялся, пока его разбирали
+  release(); await new Promise((r) => setTimeout(r, 1));
+  release(); await new Promise((r) => setTimeout(r, 1));
+  assert.deepStrictEqual(runs.filter((x) => x.startsWith('slow:')), ['slow:x', 'slow:x'], 'changed while running - runs again');
+  assert.ok(slow.idle);
   q.paused = true; q.add(['c']); q.remove('c'); q.paused = false; q.pump();
   assert.ok(q.idle);
   q.clear();
