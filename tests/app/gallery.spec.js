@@ -199,3 +199,37 @@ test('law: no button - no print. Upload only, a scripted click and a forged call
     expect(fake.commands(128).length).toBe(1);
   } finally { await app.close(); await fake.close(); }
 });
+
+test('big folder (300 files): the first screen gets its pictures before the rest, the window stays responsive', async () => {
+  test.setTimeout(400000);
+  const { app, win } = await launch();
+  try {
+    const dir = require('./helpers').tmp('gg-big-');
+    const src = ['orca.gcode', 'prusa.gcode', 'bambu.gcode', 'cura.gcode', 'elegoo.gcode', 'cube.stl'];
+    for (let i = 0; i < 300; i++) {
+      const n = src[i % src.length];
+      fs.mkdirSync(path.join(dir, 'p' + Math.floor(i / 50)), { recursive: true });
+      fs.copyFileSync(path.join(require('./helpers').FIX, n), path.join(dir, 'p' + Math.floor(i / 50), `${String(i).padStart(3, '0')}-${n}`));
+    }
+    const t0 = Date.now();
+    await win.evaluate((d) => window.galleryApp.gallery().openFolder(d), dir);
+    const listed = Date.now() - t0;
+    expect(listed).toBeLessThan(10000);
+    await expect(win.locator('.gg-card')).toHaveCount(300);
+    // Первый экран: все видимые плитки с картинкой, пока очередь ещё не пуста.
+    await win.waitForFunction(() => {
+      const box = document.querySelector('.gg-body').getBoundingClientRect();
+      const vis = [...document.querySelectorAll('.gg-card')].filter((c) => { const r = c.getBoundingClientRect(); return r.top < box.bottom && r.bottom > box.top; });
+      return vis.length > 0 && vis.every((c) => c.classList.contains('gg-has-pic'));
+    }, null, { timeout: 120000 });
+    const st = await win.evaluate(() => window.galleryApp.state());
+    expect(st.queue, 'the first screen was done before the whole folder').toBeGreaterThan(0);
+    // Окно отвечает, пока идёт разбор: поиск срабатывает сразу.
+    const t1 = Date.now();
+    await win.fill('.gg-search', '007-');
+    await expect.poll(() => win.evaluate(() => window.galleryApp.state().shown.length)).toBe(1);
+    expect(Date.now() - t1).toBeLessThan(3000);
+    await win.fill('.gg-search', '');
+    await win.waitForFunction(() => window.galleryApp.state().queue === 0 && window.galleryApp.state().ready === 300, null, { timeout: 300000 });
+  } finally { await app.close(); }
+});
