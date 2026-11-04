@@ -79,6 +79,10 @@ test('search looks at name, filament, printer, slicer, tags and note; every word
   assert.ok(!F.matchesQuery(it, 'petg pla', mark));
   assert.ok(F.matchesQuery(it, '', null));
   assert.deepStrictEqual(F.facets([it, { kind: 'stl', info: { filamentType: 'petg' } }, { kind: 'gcode', info: { filamentType: 'ABS' } }]), { types: ['ABS', 'PETG'], kinds: ['gcode', 'stl'] });
+  const list = [it, { path: '/y', name: 'y', info: { filamentType: 'pla' } }, { path: '/z', name: 'z', info: { filamentType: 'PETG' } }, { path: '/w', name: 'w', kind: 'stl', info: {} }];
+  assert.deepStrictEqual(F.filterItems(list, { types: ['PETG'] }).map((x) => x.path), ['/x/Bracket.gcode', '/z']);
+  assert.deepStrictEqual(F.filterItems(list, { types: ['PLA'] }).map((x) => x.path), ['/y'], 'case does not matter');
+  assert.deepStrictEqual(F.filterItems(list, { kinds: ['stl'] }).map((x) => x.path), ['/w']);
   const p = { path: '/p', name: 'p', info: {} };
   assert.ok(F.matches(p, Object.assign({}, F.EMPTY, { printed: 'no' }), null));
   assert.ok(!F.matches(p, Object.assign({}, F.EMPTY, { printed: 'no' }), { printed: 'yes', tags: [] }));
@@ -182,6 +186,8 @@ test('law: formatting never prints NaN/undefined for any number', async () => {
   assert.strictEqual(Fm.bytes(2048, 'en'), '2 KB');
   assert.strictEqual(Fm.bytes(3 * 1024 * 1024, 'en'), '3 MB');
   assert.strictEqual(Fm.cost(10, 1500, 1000), 15);
+  assert.strictEqual(Fm.cost(10, 1500, 500), 30, 'a 500 g spool costs twice as much per gram');
+  assert.strictEqual(Fm.cost(10, 1500, 0), null);
   assert.strictEqual(Fm.cost(0, 1500), null);
   assert.strictEqual(Fm.dims('x'), '-');
 });

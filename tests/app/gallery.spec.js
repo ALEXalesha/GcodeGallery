@@ -59,6 +59,8 @@ test('second start reads everything from the cache: no parsing, pictures at once
   await app.close();
   const again = await launch({ dataDir });
   try {
+    const known = await again.win.evaluate(async (d) => (await window.galleryHost.openFolder(d)).items.filter((it) => it.info).length, dir);
+    expect(known).toBe(17);            // сведения всех файлов - из кэша, до разбора
     await openFolder(again.win, dir);
     const st = await again.win.evaluate(() => window.galleryApp.state());
     expect(st.pics).toBe(GOOD);

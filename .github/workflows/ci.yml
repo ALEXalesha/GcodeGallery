@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Законы ядра и порог покрытия по ветвям (ядро >= 90 %, без окон >= 80 %).
+      - run: npm run coverage
+      # Electron на Ubuntu 24.04: песочнице Chromium нужны пространства имён пользователя.
+      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - run: sudo apt-get update && sudo apt-get install -y xvfb
+      # Окно: невидимое (GG_TEST=1), WebGL - swiftshader.
+      - run: xvfb-run -a npm run test:app
+      # Каждый закон ловит свой мутант (законы без окна; мутанты окна - вручную, см. README).
+      - run: node tools/mutate.js --core

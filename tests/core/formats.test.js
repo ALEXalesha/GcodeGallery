@@ -45,6 +45,16 @@ test('law: every sample of a sliced file has a 3D path within its own dims, and 
   }
 });
 
+test('law: every sliced sample with line types has outer walls and infill (types of Orca, Prusa, Cura and Bambu are understood)', () => {
+  for (const name of ['orca.gcode', 'elegoo.gcode', 'slicercc.gcode', 'prusa.gcode', 'bambu.gcode', 'cura.gcode', 'cura-griffin.gcode', 'prusa.bgcode', 'bambu.gcode.3mf']) {
+    const { view } = processFile(path.join(FIX, name));
+    const ids = view.kinds.map((k) => k.id);
+    for (const k of ['outer', 'inner', 'skirt']) assert.ok(ids.includes(k), `${name}: ${k} in ${ids}`);
+    assert.ok(ids.includes('sparse') || ids.includes('solid'), name);
+    assert.ok(!ids.includes('custom') || name.includes('cura'), `${name}: nothing falls into "other"`);
+  }
+});
+
 test('the same bytes give the same info as the file (processBuffer = processFile), and a sample never throws', () => {
   for (const name of Object.keys(EXPECTED)) {
     const file = path.join(FIX, name);
