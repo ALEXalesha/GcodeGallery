@@ -17,8 +17,9 @@ function sampleFolder() {
   return dir;
 }
 
-async function launch({ dataDir = tmp('gg-app-'), env = {}, width, height } = {}) {
-  const args = [ROOT, '--user-data-dir=' + dataDir, '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+async function launch({ dataDir = tmp('gg-app-'), env = {}, width, height, extraArgs = [] } = {}) {
+  // WebGL на программном swiftshader: одинаково на любой машине и в CI без видеокарты.
+  const args = [...extraArgs, ROOT, '--user-data-dir=' + dataDir, '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
   if (process.getuid && process.getuid() === 0) args.unshift('--no-sandbox');
   const app = await electron.launch({
     executablePath: require('electron'),

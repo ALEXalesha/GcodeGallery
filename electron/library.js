@@ -29,6 +29,7 @@ class Pool {
       const job = this.waiting.get(m.id);
       this.waiting.delete(m.id);
       w.busy = null;
+      w.unref();                      // без заданий работник не держит процесс
       if (job) { if (m.error) job.reject(Object.assign(new Error(m.error.message), { code: m.error.code })); else job.resolve(m.result); }
       this._pump();
     });
@@ -54,6 +55,7 @@ class Pool {
       if (!w) return;
       const job = this.queue.shift();
       w.busy = job.id;
+      w.ref();
       this.waiting.set(job.id, job);
       w.postMessage({ id: job.id, file: job.file, opts: job.opts });
     }

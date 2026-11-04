@@ -83,6 +83,8 @@ function detectSlicer(text, kv) {
   if (m) {
     name = m[1].trim(); version = m[2].replace(/\+.*$/, '');
     if (m[3]) date = m[3] + 'T' + m[4] + (m[5] ? 'Z' : '');
+  } else if ((m = /Simplify3D\(R\) Version (\S+)/.exec(head))) {
+    name = 'Simplify3D'; version = m[1];
   } else if ((m = /^;\s*(BambuStudio|OrcaSlicer|ElegooSlicer)\s+v?(\d[\w.+-]*)/im.exec(head))) {
     name = m[1]; version = m[2];
   } else if ((m = /^;\s*Generated with Cura_SteamEngine\s+(\S+)/im.exec(text.slice(0, 4096) + '\n' + text.slice(-4096)))) {
