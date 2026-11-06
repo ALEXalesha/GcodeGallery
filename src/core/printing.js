@@ -1,7 +1,8 @@
 // Отправка на принтер Elegoo (SDCP, тот же код, что в Slicer CC - src/shared/send.js).
-// Закон Алексея «без кнопки не печатает»: печать стартует только с жетоном, который выдаётся
-// по нажатию кнопки «Печатать» в окне подтверждения (arm) - одноразовым, на этот файл и
-// ненадолго. Без жетона - только загрузка файла на принтер (start: false), старт не уходит.
+// Закон Алексея «без кнопки не печатает»: печать стартует только с жетоном, а жетон выдаётся
+// только после ответа «Печатать» в окне подтверждения главного процесса (confirm - системное
+// окно, код окна программы его не нажмёт; R3) - одноразовый, на этот файл и ненадолго.
+// Без жетона - только загрузка файла на принтер (start: false), старт не уходит.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -39,7 +40,8 @@ function remoteNameFor(file) {
 }
 
 class Printing {
-  constructor({ send = sendToPrinter, readFile = fs.readFileSync, now = Date.now, ttlMs = 120000 } = {}) {
+  constructor({ send = sendToPrinter, readFile = fs.readFileSync, now = Date.now, ttlMs = 120000, confirm = async () => false } = {}) {
+    this.confirm = confirm;
     this.send = send;
     this.readFile = readFile;
     this.now = now;
@@ -48,8 +50,9 @@ class Printing {
     this.busy = false;
   }
 
-  /** Жетон на одну печать этого файла: выдаётся только по кнопке «Печатать». */
-  arm(file) {
+  /** Жетон на одну печать этого файла: только если человек ответил «Печатать» (confirm). */
+  async arm(file, info = {}) {
+    if ((await this.confirm(path.resolve(file), info)) !== true) throw new PrintError('declined');
     const token = crypto.randomBytes(16).toString('hex');
     this.tokens.set(token, { file: path.resolve(file), at: this.now() });
     return token;

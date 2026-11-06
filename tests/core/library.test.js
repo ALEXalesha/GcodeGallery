@@ -282,3 +282,13 @@ test('item: file errors are reported, not thrown; detail mode carries all settin
   assert.ok(bare.info.timeSec > 0);
   assert.strictEqual(bare.info.layers, 1);
 });
+
+test('law R8: the window may reopen only a folder the person chose before (recent list), not any path', () => {
+  const s = Settings.clean({ folder: '/home/a/Prints', recent: ['/home/a/Prints', '/home/a/Old'] });
+  assert.strictEqual(Settings.canOpen('/home/a/Prints', s), true);
+  assert.strictEqual(Settings.canOpen('/home/a/Old/', s), true);
+  assert.strictEqual(Settings.canOpen('/home/a/Prints/../Old', s), true);
+  for (const p of ['/', '/home', '/home/a', '/etc', '', null, 5, '/home/a/Prints/sub']) assert.strictEqual(Settings.canOpen(p, s), false, String(p));
+  assert.strictEqual(Settings.canOpen('C:\\PRINTS', Settings.clean({ recent: ['C:\\Prints'] }), { caseInsensitive: true }), true);
+  assert.strictEqual(Settings.canOpen('/x', s, { extra: ['/x'] }), true);
+});

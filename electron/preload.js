@@ -6,9 +6,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 const call = (channel) => async (...args) => {
   const r = await ipcRenderer.invoke(channel, ...args);
   if (r && r.ok) return r.value;
-  const e = new Error((r && r.message) || 'error');
-  e.code = (r && r.code) || 'error';
-  throw e;
+  // Простой объект, а не Error: через contextBridge у Error доходит только текст, а code теряется.
+  throw { name: 'GalleryError', code: (r && r.code) || 'error', message: (r && r.message) || 'error' };
 };
 const listen = (channel) => (cb) => {
   const h = (_e, data) => cb(data);

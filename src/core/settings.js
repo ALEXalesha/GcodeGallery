@@ -54,4 +54,16 @@ function save(file, s) {
   return c;
 }
 
-module.exports = { clean, cleanHost, load, save, DEFAULTS, THEMES, SORTS };
+/**
+ * Можно ли окну открыть папку без диалога выбора (R8): только ту, что человек уже выбирал
+ * (последние папки), и те, что разрешил главный процесс (extra). Любой другой путь - нет.
+ */
+function canOpen(folder, s, { extra = [], caseInsensitive = process.platform === 'win32' } = {}) {
+  if (typeof folder !== 'string' || !folder.trim()) return false;
+  const norm = (p) => { const r = path.resolve(p); return caseInsensitive ? r.toLowerCase() : r; };
+  const want = norm(folder);
+  const allowed = [...((s && s.recent) || []), ...extra].filter((x) => typeof x === 'string' && x);
+  return allowed.some((x) => norm(x) === want);
+}
+
+module.exports = { clean, cleanHost, canOpen, load, save, DEFAULTS, THEMES, SORTS };

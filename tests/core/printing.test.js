@@ -21,11 +21,11 @@ test('law: random sequences of upload / print / arm calls start a print only wit
   await fc.assert(fc.asyncProperty(fc.array(op, { maxLength: 25 }), async (ops) => {
     let now = 1000;
     const calls = [];
-    const p = new Printing({ send: async (o) => { calls.push(o.start); return { ok: true, started: o.start }; }, now: () => now, ttlMs: 60000 });
+    const p = new Printing({ send: async (o) => { calls.push(o.start); return { ok: true, started: o.start }; }, now: () => now, ttlMs: 60000, confirm: async () => true });
     let lastToken = null, lastFile = null, expected = 0;
     const used = new Set();
     for (const o of ops) {
-      if (o.kind === 'arm') { lastToken = p.arm(o.file); lastFile = o.file; continue; }
+      if (o.kind === 'arm') { lastToken = await p.arm(o.file); lastFile = o.file; continue; }
       if (o.kind === 'upload') { await p.run({ file: o.file, host: 'h' }); continue; }
       let token = lastToken, file = lastFile || o.file;
       if (o.kind === 'print-forged') token = 'f'.repeat(32);
@@ -45,14 +45,14 @@ test('law: random sequences of upload / print / arm calls start a print only wit
 test('fake printer: upload without the button - the file is there, not a single start command; with the button - exactly one', async () => {
   const fake = await startFakePrinter();
   try {
-    const p = new Printing();
+    const p = new Printing({ confirm: async () => true });
     const r = await p.run({ file: ORCA, host: fake.host });
     assert.strictEqual(r.started, false);
     assert.strictEqual(fake.commands(128).length, 0);
     await assert.rejects(p.run({ file: ORCA, host: fake.host, start: true }), (e) => e.code === 'no-button');
     await assert.rejects(p.run({ file: ORCA, host: fake.host, start: true, token: 'x' }), (e) => e.code === 'no-button');
     assert.strictEqual(fake.commands(128).length, 0);
-    const token = p.arm(ORCA);
+    const token = await p.arm(ORCA);
     const ok = await p.run({ file: ORCA, host: fake.host, start: true, token });
     assert.strictEqual(ok.started, true);
     assert.strictEqual(fake.commands(128).length, 1);
@@ -87,4 +87,22 @@ test('no host, a second send while one is running - refused before anything is s
   await first;
   assert.strictEqual(sent.length, 1);
   assert.strictEqual(sent[0].start, false);
+});
+
+test('law R3: a token only after "Print" in the confirmation of the main process; no confirmer - never; asked every time', async () => {
+  await fc.assert(fc.asyncProperty(fc.array(fc.boolean(), { minLength: 1, maxLength: 12 }), async (answers) => {
+    const asked = [], started = [];
+    let i = 0;
+    const p = new Printing({ send: async (o) => { started.push(o.start); return { started: o.start }; }, confirm: async (file) => { asked.push(file); return answers[i++]; } });
+    for (const yes of answers) {
+      let token = null;
+      try { token = await p.arm(ORCA); } catch (e) { assert.strictEqual(e.code, 'declined'); }
+      assert.strictEqual(token !== null, yes);
+      await p.run({ file: ORCA, host: 'h', start: true, token }).catch((e) => assert.strictEqual(e.code, 'no-button'));
+    }
+    assert.strictEqual(asked.length, answers.length, 'the person is asked on every arm');
+    assert.strictEqual(started.filter(Boolean).length, answers.filter(Boolean).length);
+  }), opts(100));
+  const silent = new Printing({ send: async () => ({ started: true }) });
+  await assert.rejects(silent.arm(ORCA), (e) => e.code === 'declined');
 });

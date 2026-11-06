@@ -4,7 +4,7 @@ const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { launch, sampleFolder, openFolder } = require('./helpers');
+const { launch, sampleFolder, openFolder, allow, answerPrint, printAsks } = require('./helpers');
 const { startFakePrinter } = require('../support/fake-printer');
 
 const GOOD = 15;        // 17 образцов, два не читаются (broken.bgcode, notzip.3mf) - у них картинки нет
@@ -42,6 +42,7 @@ test('law B1: reopening the folder while previews are running keeps every pictur
   const { app, win } = await launch();
   try {
     const dir = sampleFolder();
+    await allow(win, dir);
     await win.evaluate((d) => { const g = window.galleryApp.gallery(); g.openFolder(d); return g.openFolder(d); }, dir);
     await win.evaluate((d) => window.galleryApp.gallery().openFolder(d), dir);
     await openFolder(win, dir);
@@ -59,6 +60,7 @@ test('second start reads everything from the cache: no parsing, pictures at once
   await app.close();
   const again = await launch({ dataDir });
   try {
+    await allow(again.win, dir);
     const known = await again.win.evaluate(async (d) => (await window.galleryHost.openFolder(d)).items.filter((it) => it.info).length, dir);
     expect(known).toBe(17);            // сведения всех файлов - из кэша, до разбора
     await openFolder(again.win, dir);
@@ -137,7 +139,7 @@ test('open large: layers, color mode, legend, all settings, marks; Escape closes
     await expect(v.locator('.gg-vlayer-label')).toHaveText('Слой 20 из 20 · Z 3 мм');
     await v.locator('.gg-vlayer').fill('5');
     await expect(v.locator('.gg-vlayer-label')).toHaveText('Слой 5 из 20 · Z 0,75 мм');
-    await expect(v.locator('.gg-lg-row')).toHaveCount(6);
+    await expect(v.locator('.gg-lg-row')).toHaveCount(7);          // 6 типов модели + «Прочее» (полоска прочистки)
     await v.locator('.gg-vtools select').selectOption('filament');
     await expect(v.locator('.gg-lg-row .gg-swatch').first()).toHaveCSS('background-color', 'rgb(255, 128, 0)');
     await v.locator('.gg-vmarks select').selectOption('yes');
@@ -173,31 +175,73 @@ test('strip: one large model on top, small ones below, arrows switch, Enter open
   } finally { await app.close(); }
 });
 
-test('law: no button - no print. Upload only, a scripted click and a forged call start nothing; "Yes, print" starts exactly once', async () => {
+test('law R3: no button - no print. Upload only, scripted calls, arm-then-print from the window, double Enter and "Cancel" start nothing; "Print" in the system confirmation starts exactly once', async () => {
   const fake = await startFakePrinter();
   const { app, win } = await launch();
   try {
     const dir = sampleFolder();
+    const file = path.join(dir, 'orca.gcode');
     await openFolder(win, dir);
     await win.evaluate(async (h) => { await window.galleryHost.setSettings({ printerHost: h }); window.galleryApp.gallery().setSettings({ printerHost: h }); }, fake.host);
-    await win.evaluate((p) => window.galleryApp.gallery().open(p), path.join(dir, 'orca.gcode'));
+    await win.evaluate((p) => window.galleryApp.gallery().open(p), file);
     await win.click('.gg-viewer >> text=На принтер…');
     const dlg = win.locator('.gg-modal-card').first();
     await expect(dlg.locator('input.gg-input')).toHaveValue(fake.host);
     await dlg.locator('text=Только загрузить файл').click();
     await expect(dlg.locator('.gg-pstep')).toContainText('Печать не начиналась', { timeout: 60000 });
+    expect(await printAsks(win)).toBe(0);
+    // Код окна сам просит жетон и печатает: главный процесс спрашивает человека, тот отвечает «Отмена».
+    const forged = win.evaluate(async (p) => { try { const token = await window.galleryHost.printArm(p); await window.galleryHost.print({ file: p, start: true, token }); return 'printed'; } catch (e) { return e.code; } }, file);
+    await expect.poll(() => printAsks(win)).toBe(1);
+    await answerPrint(win, 'no');
+    expect(await forged).toBe('declined');
+    await win.evaluate((p) => window.galleryHost.print({ file: p, start: true }), file).catch(() => {});
+    await win.evaluate((p) => window.galleryHost.print({ file: p, start: true, token: 'f'.repeat(32) }), file).catch(() => {});
+    await win.evaluate(() => document.querySelectorAll('.gg-modal-card .gg-primary')[0].click());          // не нажатие человека
+    expect(await printAsks(win)).toBe(1);
+    // Двойной Enter на кнопке: вопрос задан один раз, ответ «Отмена» (кнопка по умолчанию в системном окне).
+    await dlg.locator('text=Загрузить и печатать…').focus();
+    await win.keyboard.press('Enter');
+    await win.keyboard.press('Enter');
+    await expect.poll(() => printAsks(win)).toBe(2);
+    await answerPrint(win, 'no');
+    await expect(dlg.locator('.gg-pstep')).toContainText('Печать отменена');
+    expect(await printAsks(win)).toBe(2);
     expect(fake.commands(128).length).toBe(0);
+    // Человек нажал «Печатать» в системном окне - ровно один старт.
     await dlg.locator('text=Загрузить и печатать…').click();
-    await expect(dlg.locator('.gg-pconfirm')).toBeVisible();
-    await win.evaluate(() => document.querySelector('.gg-pconfirm .gg-danger').click());          // не нажатие человека
-    await win.evaluate((p) => window.galleryHost.print({ file: p, start: true }), path.join(dir, 'orca.gcode')).catch(() => {});
-    await win.evaluate((p) => window.galleryHost.print({ file: p, start: true, token: 'f'.repeat(32) }), path.join(dir, 'orca.gcode')).catch(() => {});
-    await new Promise((r) => setTimeout(r, 500));
-    expect(fake.commands(128).length).toBe(0);
-    await dlg.locator('.gg-pconfirm .gg-danger').click();
+    await expect.poll(() => printAsks(win)).toBe(3);
+    await answerPrint(win, 'yes');
     await expect(dlg.locator('.gg-pstep')).toContainText('Печать началась', { timeout: 90000 });
     expect(fake.commands(128).length).toBe(1);
   } finally { await app.close(); await fake.close(); }
+});
+
+test('law R9: a second send while one is running is refused and does not break "Stop sending" of the first', async () => {
+  const fake = await startFakePrinter({ faults: { listDelayMs: 4000 } });
+  const { app, win } = await launch();
+  try {
+    const dir = sampleFolder();
+    const file = path.join(dir, 'orca.gcode');
+    await openFolder(win, dir);
+    await win.evaluate((h) => window.galleryHost.setSettings({ printerHost: h }), fake.host);
+    const first = win.evaluate((p) => window.galleryHost.print({ file: p }).then(() => 'done', (e) => e.code), file);
+    await new Promise((r) => setTimeout(r, 800));
+    const second = await win.evaluate((p) => window.galleryHost.print({ file: p }).then(() => 'done', (e) => e.code), file);
+    expect(second).toBe('busy-sending');
+    await win.evaluate(() => window.galleryHost.cancelPrint());
+    expect(await first).toBe('canceled');
+  } finally { await app.close(); await fake.close(); }
+});
+
+test('law R8: the window cannot open a folder nobody chose', async () => {
+  const { app, win } = await launch();
+  try {
+    for (const p of ['/', require('os').homedir(), path.join(require('./helpers').FIX)]) {
+      const code = await win.evaluate((f) => window.galleryHost.openFolder(f).then(() => 'opened', (e) => e.code), p);
+      expect(code, p).toBe('not-chosen');
+    }
+  } finally { await app.close(); }
 });
 
 test('big folder (300 files): the first screen gets its pictures before the rest, the window stays responsive', async () => {
@@ -211,6 +255,7 @@ test('big folder (300 files): the first screen gets its pictures before the rest
       fs.mkdirSync(path.join(dir, 'p' + Math.floor(i / 50)), { recursive: true });
       fs.copyFileSync(path.join(require('./helpers').FIX, n), path.join(dir, 'p' + Math.floor(i / 50), `${String(i).padStart(3, '0')}-${n}`));
     }
+    await allow(win, dir);
     const t0 = Date.now();
     await win.evaluate((d) => window.galleryApp.gallery().openFolder(d), dir);
     const listed = Date.now() - t0;

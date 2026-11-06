@@ -35,13 +35,33 @@ async function launch({ dataDir = tmp('gg-app-'), env = {}, width, height, extra
   await win.addInitScript(stub);
   await win.evaluate(stub);
   await win.waitForFunction(() => window.galleryApp && window.galleryApp.ready(), null, { timeout: 60000 });
+  win.__app = app;
   return { app, win, dataDir };
+}
+
+/**
+ * Разрешить окну открыть папку без диалога: так делает человек, выбирая её в диалоге (R8).
+ * Пишется в главный процесс (global.__ggTest), код окна этого сделать не может.
+ */
+async function allow(win, folder) {
+  await win.__app.evaluate((_electron, f) => { global.__ggTest.allow.push(f); }, folder);
+}
+
+/** Человек отвечает на системное окно «Начать печать?»: 'yes' или 'no' (R3). */
+async function answerPrint(win, answer) {
+  await win.__app.evaluate((_electron, a) => { global.__ggTest.answers.push(a); }, answer);
+}
+
+/** Сколько раз главный процесс спросил человека про печать. */
+async function printAsks(win) {
+  return win.__app.evaluate(() => global.__ggTest.asks.length);
 }
 
 /** Открыть папку и дождаться, пока все плитки получат сведения и картинки. */
 async function openFolder(win, folder, { pics = true } = {}) {
+  await allow(win, folder);
   await win.evaluate((f) => window.galleryApp.gallery().openFolder(f), folder);
   await win.waitForFunction((p) => { const s = window.galleryApp.state(); return s.items > 0 && s.queue === 0 && s.ready === s.items && (!p || s.pics > 0); }, pics, { timeout: 90000 });
 }
 
-module.exports = { launch, tmp, sampleFolder, openFolder, ROOT, FIX };
+module.exports = { launch, tmp, sampleFolder, openFolder, allow, answerPrint, printAsks, ROOT, FIX };
