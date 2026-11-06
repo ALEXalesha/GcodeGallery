@@ -147,3 +147,25 @@ test('law R1: marks come back after a restart under the real path, also where pa
     } finally { again.dispose(); }
   }
 });
+
+test('law R4: two folders opened at once - the last one wins, the earlier answer is marked stale, no watcher left on the first', async () => {
+  const changes = [];
+  const lib = new Library({ dataDir: tmp('data'), inline: true, pollMs: 200, debounceMs: 30, onItems: (d) => changes.push(d) });
+  try {
+    const a = tmp('A'), b = tmp('B');
+    for (let i = 0; i < 300; i++) fs.copyFileSync(path.join(FIX, 'cube.stl'), path.join(a, `a${i}.stl`));
+    fs.copyFileSync(path.join(FIX, 'orca.gcode'), path.join(b, 'b.gcode'));
+    const [ra, rb] = await Promise.all([lib.open(a), lib.open(b)]);
+    assert.strictEqual(ra.stale, true);
+    assert.strictEqual(rb.stale, undefined);
+    assert.strictEqual(rb.folder, path.resolve(b));
+    assert.deepStrictEqual(rb.items.map((x) => x.name), ['b.gcode']);
+    assert.strictEqual(lib.folder, path.resolve(b));
+    assert.ok(lib.has(path.join(b, 'b.gcode')));
+    assert.ok(!lib.has(path.join(a, 'a0.stl')));
+    fs.copyFileSync(path.join(FIX, 'cube.stl'), path.join(a, 'late.stl'));
+    await new Promise((r) => setTimeout(r, 700));
+    assert.deepStrictEqual(changes.filter((c) => c.folder !== path.resolve(b)), [], 'nothing from the first folder');
+    assert.deepStrictEqual(changes.filter((c) => c.removed.length || c.added.length), [], 'no fake removed/added');
+  } finally { lib.dispose(); }
+});

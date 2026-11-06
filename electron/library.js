@@ -76,6 +76,7 @@ class Library {
     this.pollMs = pollMs;
     this.debounceMs = debounceMs;
     this.folder = '';
+    this.openSeq = 0;
     this.recursive = true;
     this.files = new Map();
     this.watcher = null;
@@ -90,10 +91,15 @@ class Library {
 
   /** Открыть папку: список сразу (сведения - из кэша, у новых - null), дальше слежение. */
   async open(folder, { recursive = true } = {}) {
+    // Открыли другую папку, пока обходили эту: эта уже не нужна - ответ помечен stale, ни списка,
+    // ни слежения от неё не остаётся (R4).
+    const seq = ++this.openSeq;
+    const dir = path.resolve(folder);
+    const list = await scanFolder(dir, { recursive });
+    if (seq !== this.openSeq) return { folder: dir, stale: true, items: [], marks: {} };
     this.close();
-    this.folder = path.resolve(folder);
+    this.folder = dir;
     this.recursive = recursive;
-    const list = await scanFolder(this.folder, { recursive });
     this.files = new Map(list.map((f) => [f.path, f]));
     this.watcher = watchFolder(this.folder, { recursive, initial: list, pollMs: this.pollMs, debounceMs: this.debounceMs, onChange: (d) => this._changed(d) });
     return { folder: this.folder, items: list.map((f) => this._item(f)), marks: this.folderMarks() };

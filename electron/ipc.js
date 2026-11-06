@@ -49,6 +49,7 @@ function registerIpc({ getWindow, userData, test }) {
 
   const open = async (folder, recursive) => {
     const r = await library.open(folder, { recursive: recursive !== undefined ? !!recursive : settings.recursive });
+    if (r.stale) return r;
     setSettings({ folder: r.folder, recursive: library.recursive, recent: [r.folder, ...settings.recent.filter((x) => x !== r.folder)] });
     return Object.assign(r, { settings });
   };

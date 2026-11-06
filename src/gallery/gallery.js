@@ -348,18 +348,22 @@ export function createGallery(root, host, { settings: initial = {}, onSettings =
     for (const p of old.keys()) if (!S.byPath.has(p)) queue.remove(p);
   }
 
+  // Ответ на устаревший запрос (пока читали папку, открыли другую) не показываем (R4).
+  let openSeq = 0;
   async function openFolder(folder) {
+    const my = ++openSeq;
     S.scanning = true;
     status();
     try {
       const r = await host.openFolder(folder, S.settings.recursive);
-      applyOpen(r);
-    } finally { S.scanning = false; status(); }
+      if (my === openSeq && r && !r.stale) applyOpen(r);
+    } finally { if (my === openSeq) { S.scanning = false; status(); } }
   }
 
   async function chooseFolder() {
+    const my = ++openSeq;
     const r = await host.chooseFolder();
-    if (r) applyOpen(r);
+    if (r && !r.stale && my === openSeq) applyOpen(r);
   }
 
   function applyOpen(r) {

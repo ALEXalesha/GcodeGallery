@@ -53,6 +53,22 @@ test('law B1: reopening the folder while previews are running keeps every pictur
   } finally { await app.close(); }
 });
 
+test('law R4: picking another folder while the first is still being read shows only the last one', async () => {
+  const { app, win } = await launch();
+  try {
+    const a = require('./helpers').tmp('gg-A-'), b = sampleFolder();
+    for (let i = 0; i < 400; i++) fs.copyFileSync(path.join(require('./helpers').FIX, 'cube.stl'), path.join(a, `a${i}.stl`));
+    await allow(win, a);
+    await allow(win, b);
+    await win.evaluate(([x, y]) => { const g = window.galleryApp.gallery(); g.openFolder(x); return g.openFolder(y); }, [a, b]);
+    await new Promise((r) => setTimeout(r, 1500));
+    const st = await win.evaluate(() => window.galleryApp.state());
+    expect(st.folder).toBe(b);
+    expect(st.items).toBe(17);
+    expect(st.shown.every((p) => p.startsWith(b))).toBe(true);
+  } finally { await app.close(); }
+});
+
 test('second start reads everything from the cache: no parsing, pictures at once', async () => {
   const { app, win, dataDir } = await launch();
   const dir = sampleFolder();
