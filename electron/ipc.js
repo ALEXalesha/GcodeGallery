@@ -44,7 +44,7 @@ function registerIpc({ getWindow, userData, test }) {
   });
   handle('folder:open', (folder, recursive) => open(String(folder || ''), recursive));
   handle('items', () => library.items());
-  handle('marks', () => library.marks.all());
+  handle('marks', () => library.folderMarks());
   handle('preview', (p, opts) => library.preview(p, opts || {}));
   handle('view', (p) => library.view(p));
   handle('detail', (p) => library.detail(p));

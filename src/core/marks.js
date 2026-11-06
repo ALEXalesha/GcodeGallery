@@ -36,11 +36,14 @@ function cleanMark(m) {
   return out.favorite || out.tags.length || out.note.trim() || out.printed ? out : null;
 }
 
-const norm = (p) => (process.platform === 'win32' ? path.resolve(p).toLowerCase() : path.resolve(p));
+// В Windows путь без учёта регистра: ключ - в нижнем регистре. Наружу (окну) отметки отдаются по
+// настоящему пути файла (Library.folderMarks), иначе после перезапуска они бы «пропали» (R1).
+const normWith = (ci) => (p) => (ci ? path.resolve(p).toLowerCase() : path.resolve(p));
 
 class Marks {
-  constructor(file) {
+  constructor(file, { caseInsensitive = process.platform === 'win32' } = {}) {
     this.file = file;
+    this.norm = normWith(caseInsensitive);
     this.map = new Map();
     let j = null;
     try { j = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { j = null; }
@@ -49,11 +52,11 @@ class Marks {
     }
   }
 
-  get(p) { return this.map.get(norm(p)) || null; }
+  get(p) { return this.map.get(this.norm(p)) || null; }
 
   /** Поменять поля отметки (patch), вернуть итог; пустая отметка удаляется. */
   set(p, patch) {
-    const k = norm(p);
+    const k = this.norm(p);
     const cur = this.map.get(k) || { favorite: false, tags: [], note: '', printed: '' };
     const next = cleanMark(Object.assign({}, cur, patch && typeof patch === 'object' ? patch : {}));
     if (next) this.map.set(k, next); else this.map.delete(k);

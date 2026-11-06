@@ -68,9 +68,9 @@ class Library {
   /**
    * @param {{dataDir: string, inline?: boolean, onItems?: (change) => void, pollMs?: number, debounceMs?: number}} o
    */
-  constructor({ dataDir, inline = false, onItems = () => {}, pollMs = 30000, debounceMs = 400, workers }) {
+  constructor({ dataDir, inline = false, onItems = () => {}, pollMs = 30000, debounceMs = 400, workers, caseInsensitive }) {
     this.cache = new Cache({ dir: path.join(dataDir, 'cache'), version: VERSION });
-    this.marks = new Marks(path.join(dataDir, 'marks.json'));
+    this.marks = new Marks(path.join(dataDir, 'marks.json'), caseInsensitive === undefined ? {} : { caseInsensitive });
     this.pool = new Pool({ inline, size: workers });
     this.onItems = onItems;
     this.pollMs = pollMs;
@@ -96,7 +96,7 @@ class Library {
     const list = await scanFolder(this.folder, { recursive });
     this.files = new Map(list.map((f) => [f.path, f]));
     this.watcher = watchFolder(this.folder, { recursive, initial: list, pollMs: this.pollMs, debounceMs: this.debounceMs, onChange: (d) => this._changed(d) });
-    return { folder: this.folder, items: list.map((f) => this._item(f)), marks: this.marks.all() };
+    return { folder: this.folder, items: list.map((f) => this._item(f)), marks: this.folderMarks() };
   }
 
   _changed(d) {
@@ -155,6 +155,13 @@ class Library {
   saveShot(p, dataUrl) {
     const f = this._file(p);
     return this.cache.putShot(f.path, f.size, f.mtimeMs, dataUrl);
+  }
+
+  /** Отметки файлов открытой папки по их настоящему пути (как их видит окно). */
+  folderMarks() {
+    const out = {};
+    for (const p of this.files.keys()) { const m = this.marks.get(p); if (m) out[p] = m; }
+    return out;
   }
 
   mark(p, patch) { return this.marks.set(this._file(p).path, patch); }

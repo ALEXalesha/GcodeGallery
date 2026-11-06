@@ -128,3 +128,22 @@ test('window state file: save and load, junk gives null, capture uses the normal
   assert.deepStrictEqual(WS.capture(win), { x: 3, y: 4, width: 500, height: 400, maximized: true });
   assert.deepStrictEqual(WS.capture({ getBounds: () => ({ x: 0, y: 0, width: 1, height: 1 }), isMaximized: () => false }), { x: 0, y: 0, width: 1, height: 1, maximized: false });
 });
+
+test('law R1: marks come back after a restart under the real path, also where paths ignore case (Windows)', async () => {
+  for (const caseInsensitive of [false, true]) {
+    const data = tmp('marks-case');
+    const dir = tmp('MixedCase');
+    fs.copyFileSync(path.join(FIX, 'orca.gcode'), path.join(dir, 'Benchy Part.GCODE'));
+    const lib = new Library({ dataDir: data, inline: true, pollMs: 0, caseInsensitive });
+    const file = (await lib.open(dir)).items[0].path;
+    lib.mark(file, { favorite: true, tags: ['x'] });
+    lib.dispose();
+    const again = new Library({ dataDir: data, inline: true, pollMs: 0, caseInsensitive });
+    try {
+      const r = await again.open(dir);
+      assert.strictEqual(r.items[0].path, file);
+      assert.deepStrictEqual(r.marks[file] && r.marks[file].tags, ['x'], `caseInsensitive=${caseInsensitive}: ${Object.keys(r.marks)}`);
+      assert.deepStrictEqual(Object.keys(again.folderMarks()), [file]);
+    } finally { again.dispose(); }
+  }
+});
