@@ -17,10 +17,15 @@ jobs:
       - run: npm ci
       # Законы ядра и порог покрытия по ветвям (ядро >= 90 %, без окон >= 80 %).
       - run: npm run coverage
+      # Настоящие файлы PrusaSlicer (.bgcode из тестов libbgcode, AGPL - в репо не кладём):
+      # команды, картинки, габариты и «влезает на стол» (R2).
+      - run: git clone --depth 1 https://github.com/prusa3d/libbgcode "$RUNNER_TEMP/libbgcode"
+      - run: node tools/check-bgcode-ref.js "$RUNNER_TEMP/libbgcode/tests/data"
       # Electron на Ubuntu 24.04: песочнице Chromium нужны пространства имён пользователя.
       - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: sudo apt-get update && sudo apt-get install -y xvfb
       # Окно: невидимое (GG_TEST=1), WebGL - swiftshader.
       - run: xvfb-run -a npm run test:app
       # Каждый закон ловит свой мутант (законы без окна; мутанты окна - вручную, см. README).
+      - run: node tools/mutate.js --check
       - run: node tools/mutate.js --core

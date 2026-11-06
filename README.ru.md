@@ -32,8 +32,8 @@
   поддержки, мосты…) или цветом пластика, легенда с долей времени каждого типа, все настройки из файла.
 - **На принтер** (Elegoo Centauri Carbon по сети, SDCP, тот же код, что в
   [Slicer CC](https://github.com/ALEXalesha/Slicer)): только загрузить или загрузить и печатать.
-  **Печать начинается только после кнопки «Да, печатать»** - главный процесс выдаёт одноразовый жетон только на это
-  нажатие.
+  **Печать начинается только после кнопки «Печатать» в системном окне подтверждения** (Enter - это «Отмена»):
+  только тогда главный процесс выдаёт одноразовый жетон на этот файл, код окна программы нажать её не может.
 - **Форматы:** `.gcode` (OrcaSlicer, Elegoo Slicer, Slicer CC, PrusaSlicer, Bambu Studio, Cura), `.gcode.3mf`
   (Bambu Studio, OrcaSlicer), `.bgcode` (двоичный G-code PrusaSlicer: heatshrink, MeatPack, CRC32 - сверено с
   настоящими файлами PrusaSlicer 2.6 и 2.8.1), обычные `.3mf` и `.stl` (сама модель).
@@ -72,7 +72,7 @@ npm run dist
 | Покрытие по ветвям с порогами: ядро >= 90 %, весь код без окон >= 80 % ([отчёт](docs/coverage.md)) | `npm run coverage` |
 | Настоящее окно Electron, невидимое (Playwright) | `npm run test:app` (в Linux: `xvfb-run -a npm run test:app`) |
 | Мутационная проверка: каждый закон ловит свой мутант | `npm run mutate` (`node tools/mutate.js --core` - без окна) |
-| `.bgcode` против настоящих файлов PrusaSlicer из libbgcode | `node tools/check-bgcode-ref.js <libbgcode>/tests/data` |
+| Настоящие файлы PrusaSlicer из libbgcode: команды, картинки, габариты и «влезает» (и в CI) | `node tools/check-bgcode-ref.js <libbgcode>/tests/data` |
 
 Образцы файлов каждого слайсера лежат в `tests/fixtures` (их делает `npm run fixtures`, эталон - `expected.json`).
 Печать проверяется только на поддельном принтере (`tests/support/fake-printer.js`).

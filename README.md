@@ -33,7 +33,8 @@ Code, tests and docs were written by Claude (Anthropic) in Claude Code; ideas, r
   stored in the file.
 - **Send to the printer** (Elegoo Centauri Carbon over the network, SDCP, the same code as in
   [Slicer CC](https://github.com/ALEXalesha/Slicer)): upload only, or upload and print. **Printing starts only
-  after you press "Yes, print"** - the main process gives a one-time token only for that click.
+  after you press "Print" in the system confirmation window** (Enter means "Cancel"); only then does the main
+  process give a one-time token for that file - code in the window cannot press it.
 - **Formats:** `.gcode` (OrcaSlicer, Elegoo Slicer, Slicer CC, PrusaSlicer, Bambu Studio, Cura), `.gcode.3mf`
   (Bambu Studio, OrcaSlicer), `.bgcode` (PrusaSlicer binary G-code: heatshrink, MeatPack, CRC32 - checked against
   real PrusaSlicer 2.6 and 2.8.1 files), plain `.3mf` and `.stl` (the model itself).
@@ -72,7 +73,7 @@ npm run dist
 | Branch coverage with limits: core >= 90 %, all code without windows >= 80 % ([report](docs/coverage.md)) | `npm run coverage` |
 | The real Electron window, invisible (Playwright) | `npm run test:app` (on Linux: `xvfb-run -a npm run test:app`) |
 | Mutation check: every law catches its own mutant | `npm run mutate` (`node tools/mutate.js --core` without the window) |
-| `.bgcode` against real PrusaSlicer files from libbgcode | `node tools/check-bgcode-ref.js <libbgcode>/tests/data` |
+| Real PrusaSlicer files from libbgcode: commands, pictures, size and fits-on-bed (in CI too) | `node tools/check-bgcode-ref.js <libbgcode>/tests/data` |
 
 Sample files of every slicer are in `tests/fixtures` (made by `npm run fixtures`, the reference values are in
 `expected.json`). Printing is tested only on a fake printer (`tests/support/fake-printer.js`).

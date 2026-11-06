@@ -171,6 +171,14 @@ test('law R6: the gallery as a tab - created and destroyed 10 times with the lar
     const before = await contexts();
     const frames = await win.evaluate(async () => { const f0 = window.__ggStats.frames; await new Promise((r) => setTimeout(r, 600)); return window.__ggStats.frames - f0; });
     expect(frames, 'the closed large view does not draw').toBe(0);
+    // Лента ушла с экрана (переключили на сетку), а модель в ней осталась - тоже не рисует.
+    await win.click('.gg-seg >> nth=1');
+    await expect.poll(() => win.evaluate(() => window.galleryApp.state().stripModel)).toBe(true);
+    const count = () => win.evaluate(async () => { const f0 = window.__ggStats.frames; await new Promise((r) => setTimeout(r, 2500)); return window.__ggStats.frames - f0; });
+    expect(await count(), 'the strip on screen does draw (the measure works)').toBeGreaterThan(0);
+    await win.click('.gg-seg >> nth=0');
+    const hidden = await count();
+    expect(hidden, 'the strip off screen does not draw').toBe(0);
     for (let i = 0; i < 10; i++) { await win.evaluate(() => window.galleryApp.remount()); await once(); }
     expect(await contexts()).toBeLessThanOrEqual(before);
     expect(await win.evaluate(() => window.__ggStats.sendStepListeners)).toBe(1);

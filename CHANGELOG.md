@@ -12,9 +12,13 @@ First version of the gallery.
 - Formats: `.gcode`, `.gcode.3mf`, `.bgcode` (heatshrink, MeatPack, CRC32), `.3mf` and `.stl` models.
 - Search, sort and filters; favorites, tags, notes, "printed / not printed" stored apart from the files.
 - Open large: layer slider, colors by line type or filament color, legend, all file settings.
-- Upload to an Elegoo printer and print only after the "Yes, print" button.
+- Upload to an Elegoo printer; printing only after "Print" in the system confirmation window.
 - Watching the folder, a cache by path + size + date, parsing in worker threads, visible tiles first.
 - Five themes, Russian and English, narrow window, the window remembers its size and place.
 - Shared code with Slicer CC in `src/shared` (see `SOURCE.md`).
+- Fixed after an independent review: marks lost on Windows, purge line counted in the size, a print without the
+  button, two folders opened at once, marks saved to the wrong file, WebGL leaks of an embedded gallery, ZIP
+  bombs, any folder opened from the window, cancel broken by a second send, date filter one day off, G-code over
+  512 MB, unreadable file names.
 - Tests: laws on random inputs with a seed, branch coverage with limits, mutation check, Playwright tests of the
   invisible window, CI.

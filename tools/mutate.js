@@ -3,6 +3,7 @@
 //   node tools/mutate.js              все мутанты
 //   node tools/mutate.js print        только те, где в имени есть «print»
 //   node tools/mutate.js --core       только законы без окна (быстро, для CI)
+//   node tools/mutate.js --check      только проверить, что мутанты находят своё место в коде
 // Мутант с полем app проверяется тестом окна (Playwright, невидимое окно, GG_TEST=1) с отбором -g.
 // Linux без экрана: xvfb-run -a node tools/mutate.js
 'use strict';
@@ -56,6 +57,25 @@ const MUTANTS = [
   { name: 'i18n: 11 layers as 1 layer', file: 'src/gallery/i18n.js', from: 'd === 1 && h !== 11 ? 1', to: 'd === 1 ? 1', test: T('gallery') },
   { name: 'format: cost ignores the spool weight', file: 'src/gallery/format.js', from: 'return Math.round(g * price / spoolGrams * 100) / 100;', to: 'return Math.round(g * price / 1000 * 100) / 100;', test: T('gallery') },
   { name: 'window state: off-screen window kept', file: 'electron/window-state.js', from: 'if (!best || bestArea < GRIP_WIDTH * GRIP_HEIGHT / 2) return { width, height, maximized };', to: '', test: T('main-library') },
+  // находки независимого ревью (R1-R11): каждый закон ловит свой мутант
+  { name: 'R1: marks sent by the lower-cased key', file: 'electron/library.js', from: 'marks: this.folderMarks(), skipped', to: 'marks: this.marks.all(), skipped', test: T('main-library') },
+  { name: 'R2: purge line counted in the size', file: 'src/shared/gcode-preview.js', from: 'if (k !== CUSTOM) { grow(model, x0, y0, z0); grow(model, x1, y1, z1); }', to: '{ grow(model, x0, y0, z0); grow(model, x1, y1, z1); }', test: T('formats') },
+  { name: 'R3: token without asking the person', file: 'src/core/printing.js', from: "if ((await this.confirm(path.resolve(file), info)) !== true) throw new PrintError('declined');", to: '', test: T('printing') },
+  { name: 'R4: stale folder answer applied in main', file: 'electron/library.js', from: 'if (seq !== this.openSeq) return { folder: dir, stale: true, items: [], marks: {} };', to: '', test: T('main-library') },
+  { name: 'R7: ZIP entry inflates past its size', file: 'src/shared/zip.js', from: '{ maxOutputLength: Math.max(1, e.usize) }', to: '{}', also: [["if (data.length !== e.usize) throw new ZipError('size mismatch: ' + name);", '']], test: T('extra') },
+  { name: 'R8: any folder may be opened', file: 'src/core/settings.js', from: 'return allowed.some((x) => norm(x) === want);', to: 'return true;', test: T('library') },
+  { name: 'R10: date field in UTC', file: 'src/gallery/filter.js', from: 'return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, \'0\')}-${String(d.getDate()).padStart(2, \'0\')}`;', to: 'return d.toISOString().slice(0, 10);', test: T('gallery') },
+  { name: 'R11: big G-code read as one string', file: 'src/core/item.js', from: "kindOf(name) === 'gcode' && buf.length > bigBytes && !isBgcode(buf) ? readBig(", to: 'false ? readBig(', test: T('formats') },
+  { name: 'R11: large view parses again', file: 'electron/library.js', from: 'let job = this.details.get(key);', to: 'let job = null;', test: T('main-library') },
+  { name: 'R11: unreadable names dropped silently', file: 'src/core/scan.js', from: "catch { if (e.name.includes('\\uFFFD')) out.skipped++; continue; }", to: 'catch { continue; }', test: T('main-library') },
+  { name: 'window R3: main process prints without the system confirmation', app: 'tests/app/gallery.spec.js', grep: 'R3', file: 'electron/ipc.js', from: 'const printing = new Printing({ confirm: confirmPrint });', to: 'const printing = new Printing({ confirm: async () => true });' },
+  { name: 'window R4: stale folder answer shown', app: 'tests/app/gallery.spec.js', grep: 'R4', file: 'src/gallery/gallery.js', from: 'if (my === openSeq && r && !r.stale) applyOpen(r);', to: 'if (r) applyOpen(r);' },
+  { name: 'window R5: mark goes to the file shown now', app: 'tests/app/gallery.spec.js', grep: 'R5', file: 'src/gallery/viewer.js', from: '    const m = await this.host.mark(file, patch);\n    this.onMark(file, m);', to: '    const m = await this.host.mark(file, patch);\n    this.onMark(this.item ? this.item.path : file, m);' },
+  { name: 'window R6: destroy leaves the large view WebGL', app: 'tests/app/look.spec.js', grep: 'R6', file: 'src/gallery/gallery.js', from: 'viewer.dispose(); printer.dispose();', to: 'viewer.close();' },
+  { name: 'window R6: hidden large view keeps drawing', app: 'tests/app/look.spec.js', grep: 'R6', file: 'src/gallery/render3d.js', from: 'if (this.container.offsetParent !== null && this.model) {', to: 'if (this.model) {' },
+  { name: 'window R8: folder opened without a choice', app: 'tests/app/gallery.spec.js', grep: 'R8', file: 'electron/ipc.js', from: "if (!Settings.canOpen(folder, settings, { extra: T ? T.allow : [] })) throw Object.assign(new Error('folder not chosen'), { code: 'not-chosen' });", to: '' },
+  { name: 'window R9: second send takes over the cancel', app: 'tests/app/gallery.spec.js', grep: 'R9', file: 'electron/ipc.js', from: "if (printing.busy) throw Object.assign(new Error('busy'), { code: 'busy-sending' });", to: '' },
+  { name: 'window R10: filters rebuilt under the cursor', app: 'tests/app/gallery.spec.js', grep: 'R10', file: 'src/gallery/gallery.js', from: '  function refreshFilters() {\n', to: '  function refreshFilters() {\n    renderFilters(); return;\n' },
   // окно
   { name: 'window B1: preview result goes to the old tile', app: 'tests/app/gallery.spec.js', grep: 'law B1', file: 'src/gallery/gallery.js',
     from: '    const it = S.byPath.get(p);\n    if (!it) return;\n    if (err)', to: '    const it = old;\n    if (!it) return;\n    if (err)', also: [['    if (!S.byPath.has(p)) return;', '    const old = S.byPath.get(p);\n    if (!old) return;']] },
@@ -83,6 +103,19 @@ if (fs.existsSync(BACKUP)) {
 
 const args = process.argv.slice(2);
 const coreOnly = args.includes('--core');
+// --check: только проверить, что каждый мутант находит своё место в коде (ровно одно), без тестов.
+if (args.includes('--check')) {
+  let bad = 0;
+  for (const m of MUTANTS) {
+    const text = fs.readFileSync(path.join(ROOT, m.file), 'utf8');
+    for (const [from] of [[m.from], ...(m.also || [])]) {
+      const n = text.split(from).length - 1;
+      if (n !== 1) { bad++; console.log(`?? ${m.name}: pattern found ${n} times`); }
+    }
+  }
+  console.log(`${MUTANTS.length} mutants, ${bad} broken patterns`);
+  process.exit(bad ? 1 : 0);
+}
 const filter = args.find((a) => !a.startsWith('--')) || '';
 let caught = 0, total = 0;
 const missed = [];

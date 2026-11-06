@@ -10,7 +10,7 @@
 
 | файл | откуда | что изменено |
 | --- | --- | --- |
-| `gcode-preview.js` | `src/core/gcode-preview.js` | добавлено (поведение для Orca/Elegoo/Slicer CC прежнее): типы линий PrusaSlicer, Cura и Bambu; метки слоёв Cura (`;LAYER:`) и Bambu (`; CHANGE_LAYER`, `; Z_HEIGHT:`), `; FEATURE:` Bambu; слои по высоте Z для файлов без меток; высота слоя без `;Z:` - по первой выдавленной линии; габариты выдавленного (`bounds`) |
+| `gcode-preview.js` | `src/core/gcode-preview.js` | добавлено (поведение для Orca/Elegoo/Slicer CC прежнее): типы линий PrusaSlicer, Cura и Bambu; метки слоёв Cura (`;LAYER:`) и Bambu (`; CHANGE_LAYER`, `; Z_HEIGHT:`), `; FEATURE:` Bambu; слои по высоте Z для файлов без меток; высота слоя без `;Z:` - по первой выдавленной линии; габариты выдавленного (`bounds`) без стартового кода и полоски прочистки (тип Custom; найдено ревью, R2); разбор кусками `createGcodePreviewParser` для G-code больше ~512 МБ (R11), `parseGcodePreview` работает через него с прежним ответом |
 | `gcode-info.js` | `src/core/gcode-info.js` | без изменений |
 | `geom.js` | `src/core/geom.js` | без изменений |
 | `zip.js` | `src/core/zip.js` | добавлено `openZip` (каталог сразу, записи по одной по запросу); каждая запись распаковывается не больше заявленного размера и сверяется с ним - защита от «ZIP-бомбы» (найдено ревью, R7). `readZip` теперь на `openZip`, ответ прежний |
