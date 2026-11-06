@@ -174,6 +174,34 @@ test('open large: layers, color mode, legend, all settings, marks; Escape closes
   } finally { await app.close(); }
 });
 
+test('law R5: tags typed in the large view stay with that file when you jump to the next one or close with the cross', async () => {
+  const { app, win } = await launch();
+  try {
+    const dir = sampleFolder();
+    await openFolder(win, dir);
+    const first = path.join(dir, 'prusa.gcode');
+    await win.evaluate((p) => window.galleryApp.gallery().open(p), first);
+    const v = win.locator('.gg-viewer');
+    await expect(v.locator('.gg-vtitle')).toHaveText('prusa.gcode');
+    await v.locator('input[type="text"]').fill('ярлыкR5');
+    await v.locator('button[data-i18n-title="v.next"]').click();             // смена поля и переход - разом
+    await expect(v.locator('.gg-vtitle')).not.toHaveText('prusa.gcode');
+    await expect(v.locator('input[type="text"]')).toHaveValue('');
+    await v.locator('textarea').fill('заметкаR5');
+    await v.locator('.gg-close').click();                                     // смена поля и закрытие - разом
+    await expect(v).toBeHidden();
+    const marks = await win.evaluate(() => window.galleryHost.marks());
+    expect(marks[first].tags).toEqual(['ярлыкR5']);
+    const second = Object.keys(marks).find((p) => p !== first);
+    expect(marks[second].note).toBe('заметкаR5');
+    expect(marks[second].tags).toEqual([]);
+    await win.fill('.gg-search', 'ярлыкR5');
+    await expect.poll(() => win.evaluate(() => window.galleryApp.state().shown)).toEqual([first]);
+    await win.fill('.gg-search', 'заметкаR5');
+    await expect.poll(() => win.evaluate(() => window.galleryApp.state().shown)).toEqual([second]);
+  } finally { await app.close(); }
+});
+
 test('strip: one large model on top, small ones below, arrows switch, Enter opens large', async () => {
   const { app, win } = await launch();
   try {

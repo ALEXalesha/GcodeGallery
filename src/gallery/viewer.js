@@ -165,8 +165,10 @@ export class Viewer {
 
   async mark(patch) {
     if (!this.item) return;
-    const m = await this.host.mark(this.item.path, patch);
-    this.onMark(this.item.path, m);
+    // Путь берём до ожидания: за это время могли перейти к соседнему файлу или закрыть окно (R5).
+    const file = this.item.path;
+    const m = await this.host.mark(file, patch);
+    this.onMark(file, m);
   }
 
   renderSettings() {
