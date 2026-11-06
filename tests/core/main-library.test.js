@@ -169,3 +169,22 @@ test('law R4: two folders opened at once - the last one wins, the earlier answer
     assert.deepStrictEqual(changes.filter((c) => c.removed.length || c.added.length), [], 'no fake removed/added');
   } finally { lib.dispose(); }
 });
+
+test('law R11: files whose names are not valid UTF-8 are counted and reported, not dropped silently; the large view parse is reused', async (t) => {
+  const dir = tmp('names');
+  fs.copyFileSync(path.join(FIX, 'orca.gcode'), path.join(dir, 'ok.gcode'));
+  try { fs.writeFileSync(Buffer.concat([Buffer.from(dir + '/bad-'), Buffer.from([0xff, 0xfe]), Buffer.from('.gcode')]), 'G1 X1\n'); } catch { t.skip('this file system refuses such names'); return; }
+  const lib = new Library({ dataDir: tmp('data'), inline: true, pollMs: 0 });
+  try {
+    const r = await lib.open(dir);
+    assert.deepStrictEqual(r.items.map((x) => x.name), ['ok.gcode']);
+    assert.strictEqual(r.skipped, 1);
+    let runs = 0;
+    const run = lib.pool.run.bind(lib.pool);
+    lib.pool.run = (...a) => { runs++; return run(...a); };
+    const file = path.join(dir, 'ok.gcode');
+    const a = await lib.detail(file), b = await lib.detail(file);
+    assert.strictEqual(runs, 1, 'the second opening of the large view does not parse again');
+    assert.deepStrictEqual(b.info, a.info);
+  } finally { lib.dispose(); }
+});

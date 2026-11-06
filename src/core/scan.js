@@ -12,6 +12,7 @@ const MAX_DEPTH = 32;
  */
 async function scanFolder(root, { recursive = true, limit = 100000 } = {}) {
   const out = [];
+  Object.defineProperty(out, 'skipped', { value: 0, writable: true, enumerable: false });   // файлы печати с именем не в UTF-8: их не открыть по имени - считаем и сообщаем (R11)
   const seen = new Set();
   const walk = async (dir, depth) => {
     if (depth > MAX_DEPTH || out.length >= limit) return;
@@ -30,10 +31,11 @@ async function scanFolder(root, { recursive = true, limit = 100000 } = {}) {
       if (e.isSymbolicLink()) {
         try { const st = await fs.promises.stat(full); isDir = st.isDirectory(); isFile = st.isFile(); } catch { continue; }
       }
+      if (!isDir && !isFile && e.name.includes('\uFFFD') && isSupported(e.name)) { out.skipped++; continue; }
       if (isDir) { if (recursive) await walk(full, depth + 1); continue; }
       if (!isFile || !isSupported(e.name)) continue;
       let st;
-      try { st = await fs.promises.stat(full); } catch { continue; }
+      try { st = await fs.promises.stat(full); } catch { if (e.name.includes('\uFFFD')) out.skipped++; continue; }
       const rel = path.relative(root, full);
       out.push({ path: full, rel, dir: path.dirname(rel) === '.' ? '' : path.dirname(rel), name: e.name, kind: kindOf(e.name), size: st.size, mtimeMs: Math.round(st.mtimeMs) });
     }

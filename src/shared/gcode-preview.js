@@ -59,7 +59,12 @@ function num(line, letter) {
  * @returns {{kinds: Array<{id, group, color, segments, seconds}>, layers: Array<{z: number}>,
  *   data: Array<{positions: Float32Array, layerEnd: Uint32Array}>}}
  */
-function parseGcodePreview(text, { maxSegments = 12e6 } = {}) {
+/**
+ * Разбор кусками (галерея: G-code больше предела строки V8 в ~512 МБ, R11): push(текст) сколько
+ * угодно раз (строки могут рваться между кусками), потом end(). marker - метка слоя этого файла
+ * (LAYER_MARKS), её ищет вызывающий по всему файлу; '' - слои по росту Z.
+ */
+function createGcodePreviewParser({ maxSegments = 12e6, marker = '' } = {}) {
   const segs = KINDS.map(() => new Growable());
   const layerEnds = KINDS.map(() => []);
   const seconds = new Float64Array(KINDS.length);
@@ -71,7 +76,6 @@ function parseGcodePreview(text, { maxSegments = 12e6 } = {}) {
   let total = 0;
   // Галерея: метка слоя своего слайсера (первая найденная), без меток - слой по росту Z
   // выдавленной линии; высота слоя без ;Z: - по первой выдавленной линии слоя.
-  const marker = LAYER_MARKS.find((m) => text.indexOf(m) >= 0) || '';
   let zKnown = false;
   // Габариты модели: выдавленное по типам линий; «Custom» (стартовый код, полоска прочистки за
   // краем стола) - нет (R2). Файл без типов - всё выдавленное.
@@ -95,88 +99,103 @@ function parseGcodePreview(text, { maxSegments = 12e6 } = {}) {
     const len = Math.hypot(x1 - x0, y1 - y0, z1 - z0);
     if (f > 0) seconds[k] += len / (f / 60);
   };
-  let pos = 0;
-  const L = text.length;
-  while (pos < L) {
-    let end = text.indexOf('\n', pos);
-    if (end < 0) end = L;
-    let line = text.slice(pos, end);
-    pos = end + 1;
-    if (!line) continue;
-    const c0 = line.charCodeAt(0);
-    if (c0 === 59 /* ; */) {
-      if (line.startsWith(';TYPE:')) kind = kindOf(line.slice(6));
-      else if (line.startsWith('; FEATURE:')) kind = kindOf(line.slice(10));
-      else if (marker && line.startsWith(marker) && (marker !== ';LAYER:' || /^;LAYER:-?\d/.test(line))) { closeLayer(); layer++; layers.push({ z }); zKnown = false; }   // всё до первого слоя (полоска прочистки) - в первый слой
-      else if ((line.startsWith(';Z:') || line.startsWith('; Z_HEIGHT:')) && layer >= 0) {
-        const v = Number(line.slice(line.indexOf(':') + 1));
-        if (Number.isFinite(v)) { layers[layer].z = v; zKnown = true; }
+  let rest = '';
+  const push = (chunk) => {
+    const text = rest + chunk;
+    const L = text.lastIndexOf('\n') + 1;
+    rest = text.slice(L);
+    let pos = 0;
+    while (pos < L) {
+      const end = text.indexOf('\n', pos);
+      let line = text.slice(pos, end);
+      pos = end + 1;
+      if (!line) continue;
+      const c0 = line.charCodeAt(0);
+      if (c0 === 59 /* ; */) {
+        if (line.startsWith(';TYPE:')) kind = kindOf(line.slice(6));
+        else if (line.startsWith('; FEATURE:')) kind = kindOf(line.slice(10));
+        else if (marker && line.startsWith(marker) && (marker !== ';LAYER:' || /^;LAYER:-?\d/.test(line))) { closeLayer(); layer++; layers.push({ z }); zKnown = false; }   // всё до первого слоя (полоска прочистки) - в первый слой
+        else if ((line.startsWith(';Z:') || line.startsWith('; Z_HEIGHT:')) && layer >= 0) {
+          const v = Number(line.slice(line.indexOf(':') + 1));
+          if (Number.isFinite(v)) { layers[layer].z = v; zKnown = true; }
+        }
+        continue;
       }
-      continue;
+      const sc = line.indexOf(';');
+      if (sc >= 0) line = line.slice(0, sc);
+      line = line.trim();
+      if (c0 === 71 /* G */) {
+        const sp = line.indexOf(' ');
+        const cmd = sp < 0 ? line : line.slice(0, sp);
+        if (cmd === 'G1' || cmd === 'G0' || cmd === 'G2' || cmd === 'G3') {
+          const nx = num(line, 'X'), ny = num(line, 'Y'), nz = num(line, 'Z'), ne = num(line, 'E'), nf = num(line, 'F');
+          if (nf !== null) f = nf;
+          const tx = nx === null ? x : absXY ? nx : x + nx;
+          const ty = ny === null ? y : absXY ? ny : y + ny;
+          const tz = nz === null ? z : absXY ? nz : z + nz;
+          let de = 0;
+          if (ne !== null) { de = absE ? ne - e : ne; e = absE ? ne : e + ne; }
+          const moved = tx !== x || ty !== y;
+          const k = de > 0 && moved ? kind : TRAVEL;
+          if (k !== TRAVEL) {
+            if (!marker && (layer < 0 || tz >= layers[layer].z + MIN_LAYER)) { closeLayer(); layer++; layers.push({ z: tz }); zKnown = true; }
+            else if (layer >= 0 && !zKnown) { layers[layer].z = tz; zKnown = true; }
+          }
+          if (moved) {
+            if (cmd === 'G2' || cmd === 'G3') {
+              const ci = num(line, 'I') || 0, cj = num(line, 'J') || 0;
+              const cx = x + ci, cy = y + cj;
+              const r = Math.hypot(x - cx, y - cy);
+              let a0 = Math.atan2(y - cy, x - cx), a1 = Math.atan2(ty - cy, tx - cx);
+              if (cmd === 'G3' && a1 <= a0) a1 += 2 * Math.PI;
+              if (cmd === 'G2' && a1 >= a0) a1 -= 2 * Math.PI;
+              const n = Math.max(2, Math.min(64, Math.ceil(Math.abs(a1 - a0) * r / 0.5)));
+              let px = x, py = y, pz = z;
+              for (let i = 1; i <= n; i++) {
+                const a = a0 + ((a1 - a0) * i) / n;
+                const qx = i === n ? tx : cx + r * Math.cos(a), qy = i === n ? ty : cy + r * Math.sin(a), qz = z + ((tz - z) * i) / n;
+                add(k, px, py, pz, qx, qy, qz);
+                px = qx; py = qy; pz = qz;
+              }
+            } else add(k, x, y, z, tx, ty, tz);
+          }
+          x = tx; y = ty; z = tz;
+        } else if (cmd === 'G90') absXY = true;
+        else if (cmd === 'G91') absXY = false;
+        else if (cmd === 'G92') { const ne = num(line, 'E'); if (ne !== null) e = ne; }
+      } else if (c0 === 77 /* M */) {
+        if (line.startsWith('M82')) absE = true;
+        else if (line.startsWith('M83')) absE = false;
+      }
     }
-    const sc = line.indexOf(';');
-    if (sc >= 0) line = line.slice(0, sc);
-    line = line.trim();
-    if (c0 === 71 /* G */) {
-      const sp = line.indexOf(' ');
-      const cmd = sp < 0 ? line : line.slice(0, sp);
-      if (cmd === 'G1' || cmd === 'G0' || cmd === 'G2' || cmd === 'G3') {
-        const nx = num(line, 'X'), ny = num(line, 'Y'), nz = num(line, 'Z'), ne = num(line, 'E'), nf = num(line, 'F');
-        if (nf !== null) f = nf;
-        const tx = nx === null ? x : absXY ? nx : x + nx;
-        const ty = ny === null ? y : absXY ? ny : y + ny;
-        const tz = nz === null ? z : absXY ? nz : z + nz;
-        let de = 0;
-        if (ne !== null) { de = absE ? ne - e : ne; e = absE ? ne : e + ne; }
-        const moved = tx !== x || ty !== y;
-        const k = de > 0 && moved ? kind : TRAVEL;
-        if (k !== TRAVEL) {
-          if (!marker && (layer < 0 || tz >= layers[layer].z + MIN_LAYER)) { closeLayer(); layer++; layers.push({ z: tz }); zKnown = true; }
-          else if (layer >= 0 && !zKnown) { layers[layer].z = tz; zKnown = true; }
-        }
-        if (moved) {
-          if (cmd === 'G2' || cmd === 'G3') {
-            const ci = num(line, 'I') || 0, cj = num(line, 'J') || 0;
-            const cx = x + ci, cy = y + cj;
-            const r = Math.hypot(x - cx, y - cy);
-            let a0 = Math.atan2(y - cy, x - cx), a1 = Math.atan2(ty - cy, tx - cx);
-            if (cmd === 'G3' && a1 <= a0) a1 += 2 * Math.PI;
-            if (cmd === 'G2' && a1 >= a0) a1 -= 2 * Math.PI;
-            const n = Math.max(2, Math.min(64, Math.ceil(Math.abs(a1 - a0) * r / 0.5)));
-            let px = x, py = y, pz = z;
-            for (let i = 1; i <= n; i++) {
-              const a = a0 + ((a1 - a0) * i) / n;
-              const qx = i === n ? tx : cx + r * Math.cos(a), qy = i === n ? ty : cy + r * Math.sin(a), qz = z + ((tz - z) * i) / n;
-              add(k, px, py, pz, qx, qy, qz);
-              px = qx; py = qy; pz = qz;
-            }
-          } else add(k, x, y, z, tx, ty, tz);
-        }
-        x = tx; y = ty; z = tz;
-      } else if (cmd === 'G90') absXY = true;
-      else if (cmd === 'G91') absXY = false;
-      else if (cmd === 'G92') { const ne = num(line, 'E'); if (ne !== null) e = ne; }
-    } else if (c0 === 77 /* M */) {
-      if (line.startsWith('M82')) absE = true;
-      else if (line.startsWith('M83')) absE = false;
-    }
-  }
-  if (layer < 0 && total) { layer = 0; layers.push({ z }); }
-  closeLayer();
-  const n = layers.length;
-  const data = KINDS.map((k, i) => {
-    const ends = new Uint32Array(n);
-    let last = 0;
-    for (let l = 0; l < n; l++) { if (layerEnds[i][l] !== undefined) last = layerEnds[i][l]; ends[l] = last; }
-    return { positions: segs[i].done(), layerEnd: ends };
-  });
-  return {
-    kinds: KINDS.map((k, i) => ({ id: k.id, group: k.group, color: k.color, segments: data[i].positions.length / 6, seconds: Math.round(seconds[i]) })),
-    layers,
-    data,
-    truncated: total >= maxSegments,
-    bounds: model.min[0] <= model.max[0] ? model : any.min[0] <= any.max[0] ? any : null,
   };
+  const end = () => {
+    if (rest) { const last = rest; rest = ''; push(last + '\n'); }
+    if (layer < 0 && total) { layer = 0; layers.push({ z }); }
+    closeLayer();
+    const n = layers.length;
+    const data = KINDS.map((k, i) => {
+      const ends = new Uint32Array(n);
+      let last = 0;
+      for (let l = 0; l < n; l++) { if (layerEnds[i][l] !== undefined) last = layerEnds[i][l]; ends[l] = last; }
+      return { positions: segs[i].done(), layerEnd: ends };
+    });
+    return {
+      kinds: KINDS.map((k, i) => ({ id: k.id, group: k.group, color: k.color, segments: data[i].positions.length / 6, seconds: Math.round(seconds[i]) })),
+      layers,
+      data,
+      truncated: total >= maxSegments,
+      bounds: model.min[0] <= model.max[0] ? model : any.min[0] <= any.max[0] ? any : null,
+    };
+  };
+  return { push, end };
 }
 
-module.exports = { parseGcodePreview, KINDS, LAYER_MARKS };
+/** Весь текст разом (как в слайсере). */
+function parseGcodePreview(text, { maxSegments = 12e6 } = {}) {
+  const p = createGcodePreviewParser({ maxSegments, marker: LAYER_MARKS.find((m) => text.indexOf(m) >= 0) || '' });
+  p.push(text);
+  return p.end();
+}
+
+module.exports = { parseGcodePreview, createGcodePreviewParser, KINDS, LAYER_MARKS };

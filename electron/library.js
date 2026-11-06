@@ -81,6 +81,7 @@ class Library {
     this.files = new Map();
     this.watcher = null;
     this.inflight = new Map();
+    this.details = new Map();
     this.saveTimer = null;
   }
 
@@ -102,7 +103,8 @@ class Library {
     this.recursive = recursive;
     this.files = new Map(list.map((f) => [f.path, f]));
     this.watcher = watchFolder(this.folder, { recursive, initial: list, pollMs: this.pollMs, debounceMs: this.debounceMs, onChange: (d) => this._changed(d) });
-    return { folder: this.folder, items: list.map((f) => this._item(f)), marks: this.folderMarks() };
+    this.skipped = list.skipped || 0;
+    return { folder: this.folder, items: list.map((f) => this._item(f)), marks: this.folderMarks(), skipped: this.skipped };
   }
 
   _changed(d) {
@@ -154,8 +156,16 @@ class Library {
   /** Полный разбор для большого окна: все настройки и больше отрезков. Не кэшируется. */
   async detail(p) {
     const f = this._file(p);
-    const r = await this.pool.run(f.path, { budget: 2000000, detail: true });
-    return { path: f.path, info: r.info, thumb: r.thumb, view: r.view };
+    // Последние два полных разбора - в памяти: листать туда-сюда в крупном окне без нового разбора (R11).
+    const key = f.path + '|' + f.size + '|' + f.mtimeMs;
+    let job = this.details.get(key);
+    if (!job) {
+      job = this.pool.run(f.path, { budget: 2000000, detail: true }).then((r) => ({ path: f.path, info: r.info, thumb: r.thumb, view: r.view }));
+      job.catch(() => this.details.delete(key));
+      this.details.set(key, job);
+      while (this.details.size > 2) this.details.delete(this.details.keys().next().value);
+    }
+    return job;
   }
 
   saveShot(p, dataUrl) {

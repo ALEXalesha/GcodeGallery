@@ -272,3 +272,29 @@ test('deflate bomb guard: metadata block bigger than declared is refused', () =>
   const file = Buffer.concat([Buffer.from('GCDE'), Buffer.from([1, 0, 0, 0, 0, 0]), h, Buffer.from([0, 0]), big]);
   assert.throws(() => parseBgcode(file));
 });
+
+test('law R11: G-code parsed in pieces (any cut, even inside a line or a UTF-8 letter) equals the whole; big files go the piece way', () => {
+  const { createGcodePreviewParser, LAYER_MARKS } = require('../../src/shared/gcode-preview');
+  const names = ['orca.gcode', 'prusa.gcode', 'bambu.gcode', 'cura.gcode', 'cura-griffin.gcode', 'slicercc.gcode'];
+  fc.assert(fc.property(fc.constantFrom(...names), fc.array(fc.integer({ min: 1, max: 30000 }), { maxLength: 8 }), (name, cuts) => {
+    const text = fs.readFileSync(path.join(FIX, name), 'utf8');
+    const whole = parseGcodePreview(text);
+    const p = createGcodePreviewParser({ marker: LAYER_MARKS.find((m) => text.includes(m)) || '' });
+    let at = 0;
+    for (const c of [...cuts].sort((a, b) => a - b)) { if (c > at && c < text.length) { p.push(text.slice(at, c)); at = c; } }
+    p.push(text.slice(at));
+    const parts = p.end();
+    assert.deepStrictEqual(parts.layers, whole.layers);
+    assert.deepStrictEqual(parts.kinds, whole.kinds);
+    assert.deepStrictEqual(parts.bounds, whole.bounds);
+  }), opts(80));
+  for (const name of [...names, 'empty.gcode']) {
+    const buf = fs.readFileSync(path.join(FIX, name));
+    const a = processBuffer(buf, name), b = processBuffer(buf, name, { bigBytes: 1000, chunkBytes: 777 });
+    assert.strictEqual(b.info.big, buf.length > 1000 ? true : undefined, name);
+    for (const k of ['slicer', 'slicerVersion', 'timeSec', 'filamentG', 'filamentMm', 'filamentType', 'nozzleTemp', 'bedTemp', 'printer', 'layers', 'dims', 'fits', 'bed'])
+      assert.deepStrictEqual(b.info[k], a.info[k], `${name}: ${k}`);
+    assert.strictEqual(b.view.segments, a.view.segments, name);
+    assert.strictEqual(!!b.thumb, !!a.thumb, name);
+  }
+});

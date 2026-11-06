@@ -389,6 +389,7 @@ export function createGallery(root, host, { settings: initial = {}, onSettings =
     S.views.clear();
     S.folder = r.folder;
     S.marks = r.marks || {};
+    S.skipped = r.skipped || 0;
     S.byPath = new Map();
     setItems(r.items);
     if (r.settings) Object.assign(S.settings, r.settings);
@@ -414,6 +415,7 @@ export function createGallery(root, host, { settings: initial = {}, onSettings =
     const parts = [];
     if (S.scanning) parts.push(t('status.scanning'));
     else if (S.folder) parts.push(t('status.files', { n: S.items.length, files: plural(S.items.length, 'files') }));
+    if (S.skipped) parts.push(t('status.skipped', { n: S.skipped }));
     if (left) parts.push(t('status.queue', { n: left }));
     el.status.textContent = parts.join(' · ');
   }
