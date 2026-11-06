@@ -51,7 +51,9 @@ test('law: every sliced sample with line types has outer walls and infill (types
     const ids = view.kinds.map((k) => k.id);
     for (const k of ['outer', 'inner', 'skirt']) assert.ok(ids.includes(k), `${name}: ${k} in ${ids}`);
     assert.ok(ids.includes('sparse') || ids.includes('solid'), name);
-    assert.ok(!ids.includes('custom') || name.includes('cura'), `${name}: nothing falls into "other"`);
+    const custom = view.kinds.findIndex((k) => k.id === 'custom');
+    const segs = (i) => view.data[i].positions.length / 6;
+    assert.ok(custom < 0 || segs(custom) <= 6, `${name}: only the start code (purge) is "other", got ${custom >= 0 && segs(custom)}`);
   }
 });
 

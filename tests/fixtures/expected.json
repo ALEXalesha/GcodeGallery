@@ -232,13 +232,13 @@
       "y": 180,
       "z": 180
     },
-    "fits": true,
+    "thumbs": 0,
     "dims": [
-      30,
-      30,
+      125,
+      119,
       3
     ],
-    "thumbs": 0
+    "fits": false
   },
   "bambu.gcode.3mf": {
     "slicer": "BambuStudio",

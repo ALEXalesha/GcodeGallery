@@ -90,7 +90,11 @@ function body(flavor, { box, lh }) {
 }
 
 function start(spec) {
-  return [`M140 S${spec.bedTemp}`, `M104 S${spec.nozzleTemp}`, `M190 S${spec.bedTemp}`, `M109 S${spec.nozzleTemp}`, 'G28', 'M107'];
+  // Полоска прочистки в начале, как у настоящих принтеров: за краем стола (Prusa MK4 - Y = -4,
+  // Bambu - X < 0). Она выдавлена, но не часть модели: в габариты и «влезает» не входит (R2).
+  const z = spec.lh || 0.2;
+  const purge = spec.flavor === 'bambu' ? [`G1 X-28.5 Y10 Z${z} F12000`, 'G1 X-28.5 Y120 E12 F1200'] : [`G1 X0 Y-4 Z${z} F12000`, 'G1 X60 Y-4 E9 F1200', 'G1 X100 Y-4 E4.5'];
+  return [`M140 S${spec.bedTemp}`, `M104 S${spec.nozzleTemp}`, `M190 S${spec.bedTemp}`, `M109 S${spec.nozzleTemp}`, 'G28', 'M107', 'M83', 'G92 E0', ...purge, 'G92 E0'];
 }
 
 /** G-code одного вида. spec - см. tools/make-fixtures.js. */

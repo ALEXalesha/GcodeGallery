@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { parseBgcode } = require('../src/core/bgcode');
 const { toDataUrl } = require('../src/core/thumbs');
+const { processFile } = require('../src/core/item');
 
 const dir = process.argv[2];
 if (!dir || !fs.existsSync(dir)) { console.error('usage: node tools/check-bgcode-ref.js <libbgcode>/tests/data'); process.exit(2); }
@@ -21,9 +22,12 @@ for (const f of fs.readdirSync(dir).filter((n) => n.endsWith('.bgcode'))) {
   let diff = 0;
   for (let i = 0; i < Math.max(a.length, b.length); i++) if (a[i] !== b[i]) diff++;
   const pics = res.thumbnails.map((t) => `${t.format} ${t.width}x${t.height} ${toDataUrl(t) ? 'ok' : 'BAD'}`).join(', ');
-  console.log(`${diff ? 'BAD' : 'ok '} ${f}: ${a.length} commands, ${diff} differ; pictures: ${pics}`);
+  // Закон R2 на настоящем файле: полоска прочистки за краем стола не делает модель «не влезающей».
+  const info = processFile(path.join(dir, f)).info;
+  const fitsOk = info.fits !== false;
+  console.log(`${diff || !fitsOk ? 'BAD' : 'ok '} ${f}: ${a.length} commands, ${diff} differ; pictures: ${pics}; size ${info.dims && info.dims.join('x')} mm, fits ${info.fits} (${info.printer})`);
   checked++;
-  if (diff || pics.includes('BAD')) bad++;
+  if (diff || pics.includes('BAD') || !fitsOk) bad++;
 }
 console.log(`${checked - bad}/${checked} files match`);
 process.exit(bad || !checked ? 1 : 0);

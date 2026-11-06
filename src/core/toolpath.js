@@ -91,7 +91,8 @@ function compactPath(preview, { budget = 150000 } = {}) {
     sourceSegments,
     tolerance: Math.min(tol, MAX_TOL),
     layerStep: step,
-    bounds: boundsOf(data.map((d) => d.positions)),
+    // Кадр камеры - по модели, без стартового кода и полоски прочистки (R2), если есть что-то кроме них.
+    bounds: boundsOf(data.filter((d, j) => KINDS[keep[j]].id !== 'custom' || keep.every((i) => KINDS[i].id === 'custom')).map((d) => d.positions)),
   };
 }
 

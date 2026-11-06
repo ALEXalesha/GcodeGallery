@@ -83,7 +83,9 @@ function main() {
     printMeta: meta, slicerMeta: { layer_height: '0.15', printer_settings_id: 'Original Prusa MINI', bed_shape: '0x0,180x0,180x180,0x180', max_print_height: '180' },
     gcode: gcodeOnly, compression: 2, metaCompression: 0, gcodeEncoding: 1, checksum: 0, gcodeChunk: 4096 }));
   expected['prusa-plain.bgcode'] = { slicer: 'PrusaSlicer', slicerVersion: '2.7.4', timeSec: p.timeSec, filamentType: 'PLA', filamentMm: p.mm, filamentG: p.g,
-    printer: 'Original Prusa MINI', layers: prusa.layers, layerHeight: 0.15, bed: { x: 180, y: 180, z: 180 }, fits: true, dims: expected['prusa.gcode'].dims, thumbs: 0 };
+    printer: 'Original Prusa MINI', layers: prusa.layers, layerHeight: 0.15, bed: { x: 180, y: 180, z: 180 }, thumbs: 0,
+    // Без комментариев (MeatPack без них) типов линий нет - полоску прочистки не отличить от модели: она в габаритах.
+    dims: [125, 119, 3], fits: false };
 
   // .gcode.3mf Bambu: пластина 1 - bambu.gcode, картинка пластины, slice_info.
   const bambu = fs.readFileSync(path.join(DIR, 'bambu.gcode'));

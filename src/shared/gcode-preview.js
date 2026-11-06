@@ -73,8 +73,12 @@ function parseGcodePreview(text, { maxSegments = 12e6 } = {}) {
   // выдавленной линии; высота слоя без ;Z: - по первой выдавленной линии слоя.
   const marker = LAYER_MARKS.find((m) => text.indexOf(m) >= 0) || '';
   let zKnown = false;
-  const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
-  const grow = (px, py, pz) => {
+  // Габариты модели: выдавленное по типам линий; «Custom» (стартовый код, полоска прочистки за
+  // краем стола) - нет (R2). Файл без типов - всё выдавленное.
+  const box = () => ({ min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] });
+  const model = box(), any = box();
+  const grow = (b, px, py, pz) => {
+    const { min, max } = b;
     if (px < min[0]) min[0] = px; if (px > max[0]) max[0] = px;
     if (py < min[1]) min[1] = py; if (py > max[1]) max[1] = py;
     if (pz < min[2]) min[2] = pz; if (pz > max[2]) max[2] = pz;
@@ -84,7 +88,10 @@ function parseGcodePreview(text, { maxSegments = 12e6 } = {}) {
     if (total >= maxSegments) return;
     segs[k].push6(x0, y0, z0, x1, y1, z1);
     total++;
-    if (k !== TRAVEL) { grow(x0, y0, z0); grow(x1, y1, z1); }
+    if (k !== TRAVEL) {
+      grow(any, x0, y0, z0); grow(any, x1, y1, z1);
+      if (k !== CUSTOM) { grow(model, x0, y0, z0); grow(model, x1, y1, z1); }
+    }
     const len = Math.hypot(x1 - x0, y1 - y0, z1 - z0);
     if (f > 0) seconds[k] += len / (f / 60);
   };
@@ -168,7 +175,7 @@ function parseGcodePreview(text, { maxSegments = 12e6 } = {}) {
     layers,
     data,
     truncated: total >= maxSegments,
-    bounds: min[0] <= max[0] ? { min, max } : null,
+    bounds: model.min[0] <= model.max[0] ? model : any.min[0] <= any.max[0] ? any : null,
   };
 }
 
