@@ -152,3 +152,30 @@ test('open large and close 20 times in one session: heap and WebGL canvases stay
     if (before.heap) expect(after.heap, `${before.heap} -> ${after.heap}`).toBeLessThan(before.heap * 1.3 + 8 * 1024 * 1024);
   } finally { await app.close(); }
 });
+
+test('law R6: the gallery as a tab - created and destroyed 10 times with the large view used, WebGL contexts and listeners do not pile up; a hidden large view does not draw', async () => {
+  test.setTimeout(300000);
+  const { app, win } = await launch();
+  try {
+    const dir = sampleFolder();
+    await openFolder(win, dir);
+    const contexts = () => win.evaluate(() => window.__ggStats.gl);
+    const once = async () => {
+      await win.evaluate((d) => window.galleryApp.gallery().openFolder(d), dir);
+      await win.waitForFunction(() => window.galleryApp.state().queue === 0 && window.galleryApp.state().ready > 0);
+      await win.evaluate(() => { const s = window.galleryApp.state(); window.galleryApp.gallery().open(s.shown[0]); });
+      await expect(win.locator('.gg-vloading')).toBeHidden({ timeout: 30000 });
+      await win.keyboard.press('Escape');
+    };
+    await once();
+    const before = await contexts();
+    const frames = await win.evaluate(async () => { const f0 = window.__ggStats.frames; await new Promise((r) => setTimeout(r, 600)); return window.__ggStats.frames - f0; });
+    expect(frames, 'the closed large view does not draw').toBe(0);
+    for (let i = 0; i < 10; i++) { await win.evaluate(() => window.galleryApp.remount()); await once(); }
+    expect(await contexts()).toBeLessThanOrEqual(before);
+    expect(await win.evaluate(() => window.__ggStats.sendStepListeners)).toBe(1);
+    await win.evaluate(() => window.galleryApp.gallery().destroy());
+    expect(await win.evaluate(() => document.querySelector('#gallery').childElementCount)).toBe(0);
+    expect(await contexts()).toBe(0);
+  } finally { await app.close(); }
+});

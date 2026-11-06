@@ -74,6 +74,8 @@ async function main() {
 window.galleryApp = {
   ready: () => ready,
   gallery: () => gallery,
+  // Как вкладка в слайсере: убрать ленту и создать заново на том же месте (R6).
+  remount: () => { gallery.destroy(); gallery = createGallery($('#gallery'), host, { settings, onSettings: (patch) => { save(patch); } }); return gallery; },
   state: () => (gallery ? gallery.state() : null),
   settings: () => settings,
   setTheme: async (theme) => { await save({ theme }); applyTheme(theme); },

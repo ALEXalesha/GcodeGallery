@@ -5,6 +5,7 @@
 // его мог бы «нажать» код окна или второй Enter.
 import { t } from './i18n.js';
 import { h, applyTexts } from './dom.js';
+import { STATS } from './render3d.js';
 
 export class PrintDialog {
   constructor(root, { host, getSettings, setSetting }) {
@@ -30,7 +31,10 @@ export class PrintDialog {
     root.append(el.box);
     applyTexts(el.box);
     this.off = host.onSendStep((s) => this.showStep(s));
+    STATS.sendStepListeners++;
   }
+
+  dispose() { if (this.off) { this.off(); this.off = null; STATS.sendStepListeners--; } this.el.box.remove(); }
 
   isOpen() { return !this.el.box.hidden; }
 

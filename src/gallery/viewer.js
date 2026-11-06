@@ -204,5 +204,7 @@ export class Viewer {
     this.item = null;
   }
 
+  dispose() { this.close(); if (this.stage) { this.stage.dispose(); this.stage = null; } this.el.box.remove(); }
+
   texts() { applyTexts(this.el.box); if (this.item) { this.render(); this.applyLayers(); this.renderLegend(); } }
 }

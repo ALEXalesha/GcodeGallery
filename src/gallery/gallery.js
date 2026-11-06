@@ -298,12 +298,13 @@ export function createGallery(root, host, { settings: initial = {}, onSettings =
     return open ? S.shown[i] : null;
   }
 
-  root.addEventListener('keydown', (e) => {
+  root.addEventListener('keydown', onKey);
+  function onKey(e) {
     if (viewer.isOpen() || printer.isOpen() || e.target.matches('input, select, textarea')) return;
     if (e.key === 'ArrowRight' || (S.settings.view === 'strip' && e.key === 'ArrowDown')) { e.preventDefault(); step(1); }
     else if (e.key === 'ArrowLeft' || (S.settings.view === 'strip' && e.key === 'ArrowUp')) { e.preventDefault(); step(-1); }
     else if (e.key === 'Enter' && S.selected && S.settings.view === 'strip') { const it = S.byPath.get(S.selected); if (it) viewer.open(it, S.shown); }
-  });
+  }
 
   // ------------------------------------------------------------ фильтры
   function renderFilters() {
@@ -433,6 +434,16 @@ export function createGallery(root, host, { settings: initial = {}, onSettings =
       viewer: viewer.isOpen(), live: !!(live && live.active), webgl: !!snap, stripModel: !!(stripStage && stripStage.model) }),
     select,
     open: (p) => { const it = S.byPath.get(p); if (it) viewer.open(it, S.shown); },
-    destroy() { offItems(); io.disconnect(); if (live) live.dispose(); if (snap) snap.dispose(); if (stripStage) stripStage.dispose(); viewer.close(); root.textContent = ''; },
+    // Как вкладка: всё, что лента завела, уходит вместе с ней - WebGL, подписки, таймеры, очередь (R6).
+    destroy() {
+      offItems(); io.disconnect();
+      queue.paused = true; queue.clear();
+      clearTimeout(infoTimer); clearTimeout(visTimer);
+      root.removeEventListener('keydown', onKey);
+      if (live) live.dispose(); if (snap) snap.dispose(); if (stripStage) stripStage.dispose();
+      snap = false; live = null; stripStage = null;
+      viewer.dispose(); printer.dispose();
+      root.classList.remove('gg', 'gg-small'); root.textContent = '';
+    },
   };
 }

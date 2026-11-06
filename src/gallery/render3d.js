@@ -8,6 +8,11 @@ import * as THREE from '../renderer/vendor/three/build/three.module.min.js';
 import { OrbitControls } from '../renderer/vendor/three/jsm/controls/OrbitControls.js';
 import { makeTable } from './table3d.js';
 
+// Счётчики для законов окна (R6): живые WebGL, кадры большого окна, подписки на шаги отправки.
+export const STATS = (globalThis.__ggStats = globalThis.__ggStats || { gl: 0, frames: 0, sendStepListeners: 0 });
+function newRenderer(opts) { const r = new THREE.WebGLRenderer(opts); STATS.gl++; return r; }
+function freeRenderer(r) { if (!r || r.__freed) return; r.__freed = true; r.dispose(); r.forceContextLoss(); STATS.gl--; }
+
 const VIEW_DIR = new THREE.Vector3(0.9, 0.75, 1.25).normalize();
 const A0 = Math.atan2(VIEW_DIR.x, VIEW_DIR.z), H = Math.hypot(VIEW_DIR.x, VIEW_DIR.z);
 
@@ -118,7 +123,7 @@ export class Snapshotter {
   constructor(size = 360) {
     this.size = size;
     this.canvas = document.createElement('canvas');
-    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+    this.renderer = newRenderer({ canvas: this.canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
     this.renderer.setPixelRatio(1);
     this.renderer.setSize(size, size, false);
     this.scene = new THREE.Scene();
@@ -141,7 +146,7 @@ export class Snapshotter {
     }
   }
 
-  dispose() { this.renderer.dispose(); }
+  dispose() { freeRenderer(this.renderer); }
 }
 
 /** Живая плитка: одно окошко WebGL, которое ставится поверх плитки под мышью. */
@@ -149,7 +154,7 @@ export class LiveTile {
   constructor() {
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'gg-live';
-    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
+    this.renderer = newRenderer({ canvas: this.canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     this.scene = new THREE.Scene();
     lights(this.scene);
@@ -196,7 +201,7 @@ export class LiveTile {
     this.host = null;
   }
 
-  dispose() { this.detach(); this.renderer.dispose(); }
+  dispose() { this.detach(); freeRenderer(this.renderer); }
 }
 
 /** Большое окно: управление мышью, ползунок слоёв снаружи. */
@@ -206,7 +211,7 @@ export class Stage {
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'gg-stage-canvas';
     container.appendChild(this.canvas);
-    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+    this.renderer = newRenderer({ canvas: this.canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     this.scene = new THREE.Scene();
     lights(this.scene);
@@ -219,7 +224,11 @@ export class Stage {
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(container);
     this.resize();
-    const loop = () => { this.controls.update(); this.renderer.render(this.scene, this.camera); this.raf = requestAnimationFrame(loop); };
+    // Скрытое окно (крупный просмотр закрыт, лента не на экране) не рисует (R6).
+    const loop = () => {
+      if (this.container.offsetParent !== null && this.model) { this.controls.update(); this.renderer.render(this.scene, this.camera); STATS.frames++; }
+      this.raf = requestAnimationFrame(loop);
+    };
     this.raf = requestAnimationFrame(loop);
   }
 
@@ -252,7 +261,7 @@ export class Stage {
     this.ro.disconnect();
     this.clear();
     this.controls.dispose();
-    this.renderer.dispose();
+    freeRenderer(this.renderer);
     this.canvas.remove();
   }
 }
