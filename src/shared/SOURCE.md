@@ -13,7 +13,7 @@
 | `gcode-preview.js` | `src/core/gcode-preview.js` | добавлено (поведение для Orca/Elegoo/Slicer CC прежнее): типы линий PrusaSlicer, Cura и Bambu; метки слоёв Cura (`;LAYER:`) и Bambu (`; CHANGE_LAYER`, `; Z_HEIGHT:`), `; FEATURE:` Bambu; слои по высоте Z для файлов без меток; высота слоя без `;Z:` - по первой выдавленной линии; габариты выдавленного (`bounds`) |
 | `gcode-info.js` | `src/core/gcode-info.js` | без изменений |
 | `geom.js` | `src/core/geom.js` | без изменений |
-| `zip.js` | `src/core/zip.js` | без изменений |
+| `zip.js` | `src/core/zip.js` | добавлено `openZip` (каталог сразу, записи по одной по запросу); каждая запись распаковывается не больше заявленного размера и сверяется с ним - защита от «ZIP-бомбы» (найдено ревью, R7). `readZip` теперь на `openZip`, ответ прежний |
 | `mesh.js` | `src/core/mesh.js` | без изменений (`.3mf` и `.stl` без нарезки) |
 | `sdcp.js` | `src/core/sdcp.js` | без изменений |
 | `printer-control.js` | `src/core/printer-control.js` | без изменений (нужен `sdcp.js`: проверка запросов 401/402/403) |

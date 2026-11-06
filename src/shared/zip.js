@@ -7,8 +7,12 @@ class ZipError extends Error {
   constructor(msg) { super(msg); this.code = 'bad-zip'; }
 }
 
-/** Все файлы архива: Map имя -> Buffer. Бросает ZipError на испорченном архиве. */
-function readZip(buf, { maxTotal = 1024 * 1024 * 1024 } = {}) {
+/**
+ * Архив без распаковки: имена и read(name) - распаковка одной записи по запросу (галерея: из
+ * .gcode.3mf нужна одна пластина, а не все модели и пластины). Запись не может распаковаться
+ * больше заявленного размера (защита от «бомб»: маленький файл, гигабайты внутри).
+ */
+function openZip(buf, { maxTotal = 1024 * 1024 * 1024 } = {}) {
   if (!Buffer.isBuffer(buf)) buf = Buffer.from(buf);
   // Конец центрального каталога: подпись 0x06054b50 в последних 64 КБ.
   let eocd = -1;
@@ -26,8 +30,8 @@ function readZip(buf, { maxTotal = 1024 * 1024 * 1024 } = {}) {
       cdOffset = Number(buf.readBigUInt64LE(z64 + 48));
     }
   }
-  const files = new Map();
-  let p = cdOffset, total = 0;
+  const entries = new Map();
+  let p = cdOffset;
   for (let n = 0; n < count; n++) {
     if (p + 46 > buf.length || buf.readUInt32LE(p) !== 0x02014b50) throw new ZipError('bad central directory');
     const method = buf.readUInt16LE(p + 10);
@@ -51,15 +55,35 @@ function readZip(buf, { maxTotal = 1024 * 1024 * 1024 } = {}) {
     }
     p = xend + clen;
     if (name.endsWith('/')) continue;
-    if (local + 30 > buf.length || buf.readUInt32LE(local) !== 0x04034b50) throw new ZipError('bad local header: ' + name);
-    const start = local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
-    const raw = buf.subarray(start, start + csize);
-    total += usize;
-    if (total > maxTotal) throw new ZipError('archive too large');
+    entries.set(name, { method, csize, usize, local });
+  }
+  const read = (name) => {
+    const e = entries.get(name);
+    if (!e) return null;
+    if (e.usize > maxTotal) throw new ZipError('archive too large');
+    if (e.local + 30 > buf.length || buf.readUInt32LE(e.local) !== 0x04034b50) throw new ZipError('bad local header: ' + name);
+    const start = e.local + 30 + buf.readUInt16LE(e.local + 26) + buf.readUInt16LE(e.local + 28);
+    const raw = buf.subarray(start, start + e.csize);
     let data;
-    if (method === 0) data = Buffer.from(raw);
-    else if (method === 8) data = zlib.inflateRawSync(raw);
-    else throw new ZipError('unsupported method ' + method + ': ' + name);
+    if (e.method === 0) data = Buffer.from(raw);
+    else if (e.method === 8) {
+      try { data = zlib.inflateRawSync(raw, { maxOutputLength: Math.max(1, e.usize) }); } catch (err) { throw new ZipError('bad data in ' + name + ': ' + err.message); }
+    } else throw new ZipError('unsupported method ' + e.method + ': ' + name);
+    if (data.length !== e.usize) throw new ZipError('size mismatch: ' + name);
+    return data;
+  };
+  return { names: [...entries.keys()], read };
+}
+
+/** Все файлы архива: Map имя -> Buffer. Бросает ZipError на испорченном архиве. */
+function readZip(buf, { maxTotal = 1024 * 1024 * 1024 } = {}) {
+  const z = openZip(buf, { maxTotal });
+  const files = new Map();
+  let total = 0;
+  for (const name of z.names) {
+    const data = z.read(name);
+    total += data.length;
+    if (total > maxTotal) throw new ZipError('archive too large');
     files.set(name, data);
   }
   return files;
@@ -93,4 +117,4 @@ function writeZip(entries) {
   return Buffer.concat([...locals, cd, end]);
 }
 
-module.exports = { readZip, writeZip, ZipError };
+module.exports = { readZip, openZip, writeZip, ZipError };

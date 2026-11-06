@@ -6,7 +6,7 @@
 // .3mf, внутри которого есть нарезанная пластина, считается .gcode.3mf.
 'use strict';
 const path = require('path');
-const { readZip } = require('../shared/zip');
+const { openZip } = require('../shared/zip');
 const { parseBgcode, isBgcode } = require('./bgcode');
 const { gcodeThumbnails, formatOf } = require('./thumbs');
 const { parse3mf, parseStl } = require('../shared/mesh');
@@ -96,7 +96,8 @@ function readItem(buf, name, { gcode = true } = {}) {
   }
   // .3mf и .gcode.3mf - ZIP
   let files;
-  try { files = readZip(buf); } catch (e) { throw new FormatError('bad-zip', e.message); }
+  // Каталог - сразу, записи - по одной по запросу: из пластин и моделей нужна одна (R7).
+  try { const z = openZip(buf); files = { keys: () => z.names, get: (n) => z.read(n) }; } catch (e) { throw new FormatError('bad-zip', e.message); }
   const plates = [...files.keys()].map((k) => /^Metadata\/plate_(\d+)\.gcode$/i.exec(k)).filter(Boolean)
     .map((m) => ({ n: Number(m[1]), key: m[0] })).sort((a, b) => a.n - b.n);
   if (plates.length) {

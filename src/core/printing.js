@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { sendToPrinter } = require('../shared/send');
-const { readZip } = require('../shared/zip');
+const { openZip } = require('../shared/zip');
 const { kindOf } = require('./formats');
 const { safeBase } = require('../shared/names');
 
@@ -26,7 +26,7 @@ function gcodeFor(file, readFile = fs.readFileSync) {
   }
   if (kind === 'gcode3mf' || kind === '3mf') {
     let files;
-    try { files = readZip(readFile(file)); } catch (e) { throw new PrintError('format', e.message); }
+    try { const z = openZip(readFile(file)); files = { keys: () => z.names, get: (n) => z.read(n) }; } catch (e) { throw new PrintError('format', e.message); }
     const plate = [...files.keys()].filter((k) => /^Metadata\/plate_\d+\.gcode$/i.test(k)).sort((a, b) => parseInt(a.slice(15), 10) - parseInt(b.slice(15), 10))[0];
     if (!plate) throw new PrintError('format', 'no plate');
     return files.get(plate);

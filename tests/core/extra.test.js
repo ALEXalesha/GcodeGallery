@@ -12,7 +12,7 @@ const { processBuffer } = require('../../src/core/item');
 const Meta = require('../../src/core/meta');
 const Beds = require('../../src/core/beds');
 const { readItem } = require('../../src/core/formats');
-const { readZip, writeZip } = require('../../src/shared/zip');
+const { readZip, writeZip, openZip } = require('../../src/shared/zip');
 const { parse3mf, parseStl, parseObj, parseModel, parseModelSettings } = require('../../src/shared/mesh');
 const G = require('../../src/shared/geom');
 const { parseReply } = require('../../src/shared/discovery');
@@ -204,4 +204,24 @@ test('model views from items: STL bounds start at z = 0 on the bed, budget respe
   assert.strictEqual(r.view.bounds.min[2], 0);
   assert.deepStrictEqual(r.info.dims, [10, 10, 10]);
   assert.strictEqual(processBuffer(writeZip([{ name: '3D/3dmodel.model', data: model3mfXml(cube(4)) }]), 'm.3mf').info.objects, 1);
+});
+
+test('law R7: a ZIP entry that inflates beyond its declared size is refused; openZip inflates only what is asked', () => {
+  const big = Buffer.alloc(2 * 1024 * 1024, 0x41);
+  const good = writeZip([{ name: 'Metadata/plate_1.gcode', data: 'G1 X1\n' }, { name: 'bomb.bin', data: big }]);
+  const lie = Buffer.from(good);
+  const eocd = lie.length - 22;
+  let p = lie.readUInt32LE(eocd + 16);
+  for (let n = 0; n < 2; n++) {
+    const nlen = lie.readUInt16LE(p + 28);
+    if (lie.toString('utf8', p + 46, p + 46 + nlen) === 'bomb.bin') lie.writeUInt32LE(10, p + 24);
+    p += 46 + nlen + lie.readUInt16LE(p + 30) + lie.readUInt16LE(p + 32);
+  }
+  assert.throws(() => readZip(lie), (e) => e.code === 'bad-zip');
+  const z = openZip(lie);
+  assert.deepStrictEqual(z.names.sort(), ['Metadata/plate_1.gcode', 'bomb.bin']);
+  assert.strictEqual(z.read('Metadata/plate_1.gcode').toString(), 'G1 X1\n');
+  assert.throws(() => z.read('bomb.bin'), (e) => e.code === 'bad-zip');
+  assert.strictEqual(z.read('nope'), null);
+  assert.strictEqual(readItem(lie, 'x.gcode.3mf').kind, 'gcode3mf', 'the plate is read without touching other entries');
 });
