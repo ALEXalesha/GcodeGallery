@@ -191,3 +191,23 @@ test('law: formatting never prints NaN/undefined for any number', async () => {
   assert.strictEqual(Fm.cost(0, 1500), null);
   assert.strictEqual(Fm.dims('x'), '-');
 });
+
+test('law R10: the date field shows the day you picked in any time zone (from - start of day, to - end of day)', async () => {
+  const [F] = await load();
+  const old = process.env.TZ;
+  try {
+    for (const tz of ['UTC', 'Europe/Moscow', 'America/Los_Angeles', 'Pacific/Kiritimati', 'Asia/Kolkata']) {
+      process.env.TZ = tz;
+      fc.assert(fc.property(fc.date({ min: new Date('2000-01-01'), max: new Date('2099-12-31') }), (d) => {
+        const day = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+        const from = F.inputToDate(day, false), to = F.inputToDate(day, true);
+        assert.strictEqual(F.dateToInput(from), day, tz);
+        assert.strictEqual(F.dateToInput(to), day, tz);
+        assert.ok(to > from && to - from < 86400000 + 3600000);
+      }), opts(100));
+    }
+    assert.strictEqual(F.inputToDate('', false), null);
+    assert.strictEqual(F.inputToDate('junk', false), null);
+    assert.strictEqual(F.dateToInput(null), '');
+  } finally { process.env.TZ = old; if (old === undefined) delete process.env.TZ; }
+});

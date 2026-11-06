@@ -88,3 +88,18 @@ export function activeCount(f) {
   const ff = Object.assign({}, EMPTY, f || {});
   return [ff.types.length > 0, ff.kinds.length > 0, ff.favorite, !!ff.printed, !!ff.tag, has(ff.timeMin) || has(ff.timeMax), has(ff.weightMin) || has(ff.weightMax), has(ff.dateFrom) || has(ff.dateTo)].filter(Boolean).length;
 }
+
+/** Поле «дата» -> миллисекунды: начало дня (from) или конец (to) по местному времени (R10). */
+export function inputToDate(value, end) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), end ? 23 : 0, end ? 59 : 0, end ? 59 : 0, end ? 999 : 0);
+  return Number.isFinite(d.getTime()) ? d.getTime() : null;
+}
+
+/** Миллисекунды -> поле «дата» (YYYY-MM-DD по местному времени, не UTC - иначе день съезжает). */
+export function dateToInput(ms) {
+  if (!Number.isFinite(ms)) return '';
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}

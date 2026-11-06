@@ -7,7 +7,7 @@
 // по видимым плиткам (src/gallery/queue.js).
 import { t, plural, setLang } from './i18n.js';
 import { h, applyTexts } from './dom.js';
-import { filterItems, sortItems, facets, activeCount, EMPTY } from './filter.js';
+import { filterItems, sortItems, facets, activeCount, EMPTY, inputToDate, dateToInput } from './filter.js';
 import { cardLines } from './format.js';
 import { PreviewQueue } from './queue.js';
 import { Snapshotter, LiveTile, Stage } from './render3d.js';
@@ -54,6 +54,8 @@ export function createGallery(root, host, { settings: initial = {}, onSettings =
     h('div', { class: 'gg-group' }, h('div', { class: 'gg-segs' }, el.gridBtn, el.stripBtn), el.size),
   );
   el.filters = h('div', { class: 'gg-filters', hidden: true });
+  el.count = h('span', { class: 'gg-flabel gg-fcount' });
+  el.filters.addEventListener('focusout', () => setTimeout(() => { if (filtersLater && !el.filters.contains(document.activeElement)) renderFilters(); }, 0));
   el.grid = h('div', { class: 'gg-grid', role: 'list' });
   el.stage = h('div', { class: 'gg-strip-stage' });
   el.stageInfo = h('div', { class: 'gg-strip-info' });
@@ -104,7 +106,7 @@ export function createGallery(root, host, { settings: initial = {}, onSettings =
   let infoTimer = 0;
   function infoArrived() {
     const needs = ['time', 'weight', 'sliced'].includes(S.settings.sort) || activeCount(S.filters) > 0;
-    renderFilters();
+    refreshFilters();
     if (!needs) return;
     clearTimeout(infoTimer);
     infoTimer = setTimeout(relayout, 600);
@@ -179,7 +181,7 @@ export function createGallery(root, host, { settings: initial = {}, onSettings =
     if (m) S.marks[p] = m; else delete S.marks[p];
     const it = S.byPath.get(p);
     if (it) updateCard(it);
-    renderFilters();
+    refreshFilters();
     if (S.filters.favorite || S.filters.printed || S.filters.tag) relayout();
   }
 
@@ -209,6 +211,7 @@ export function createGallery(root, host, { settings: initial = {}, onSettings =
     el.dir.title = t('top.dir.' + S.settings.sortDir);
     const n = activeCount(S.filters);
     el.filtersBtn.querySelector('.gg-count').textContent = n ? String(n) : '';
+    el.count.textContent = t('f.count', { n: S.shown.length, m: S.items.length });
     if (S.settings.view === 'grid') {
       const want = S.shown.map((it) => card(it));
       syncChildren(el.grid, want);
@@ -307,7 +310,21 @@ export function createGallery(root, host, { settings: initial = {}, onSettings =
   }
 
   // ------------------------------------------------------------ фильтры
+  // Панель фильтров пересобирается только когда поменялся набор пластиков, видов файлов или
+  // меток и курсор не в ней: иначе набираемое значение стирается каждым пришедшим превью (R10).
+  let filtersKey = '', filtersLater = false;
+  function refreshFilters() {
+    const fc = facets(S.items);
+    const tags = [...new Set(Object.values(S.marks).flatMap((m) => m.tags))];
+    const key = JSON.stringify([fc.types, fc.kinds, tags]);
+    if (key === filtersKey) return;
+    if (el.filters.contains(document.activeElement)) { filtersLater = true; return; }
+    renderFilters();
+  }
+
   function renderFilters() {
+    filtersLater = false;
+    filtersKey = JSON.stringify([facets(S.items).types, facets(S.items).kinds, [...new Set(Object.values(S.marks).flatMap((m) => m.tags))]]);
     const f = S.filters;
     const fc = facets(S.items);
     const tags = [...new Set(Object.values(S.marks).flatMap((m) => m.tags))].sort((a, b) => a.localeCompare(b));
@@ -315,8 +332,8 @@ export function createGallery(root, host, { settings: initial = {}, onSettings =
     const toggleIn = (key, v) => () => { const s = new Set(f[key]); if (s.has(v)) s.delete(v); else s.add(v); f[key] = [...s]; relayout(); renderFilters(); };
     const numIn = (key, scale = 1) => h('input', { type: 'number', min: 0, step: 'any', class: 'gg-num', value: f[key] === null || f[key] === undefined ? '' : String(f[key] / scale),
       onchange: (e) => { const v = e.target.value === '' ? null : Number(e.target.value) * scale; f[key] = Number.isFinite(v) ? v : null; relayout(); } });
-    const dateIn = (key, end) => h('input', { type: 'date', class: 'gg-date', value: f[key] ? new Date(f[key]).toISOString().slice(0, 10) : '',
-      onchange: (e) => { const v = e.target.value ? Date.parse(e.target.value + (end ? 'T23:59:59' : 'T00:00:00')) : null; f[key] = Number.isFinite(v) ? v : null; relayout(); } });
+    const dateIn = (key, end) => h('input', { type: 'date', class: 'gg-date', value: dateToInput(f[key]),
+      onchange: (e) => { f[key] = inputToDate(e.target.value, end); relayout(); } });
     el.filters.textContent = '';
     el.filters.append(
       h('div', { class: 'gg-fgroup' }, h('span', { class: 'gg-flabel' }, t('f.types')), fc.types.map((x) => chip(x, f.types.includes(x), toggleIn('types', x)))),
@@ -331,7 +348,7 @@ export function createGallery(root, host, { settings: initial = {}, onSettings =
         h('span', { class: 'gg-flabel' }, t('f.weight')), t('f.from'), numIn('weightMin'), t('f.to'), numIn('weightMax')),
       h('div', { class: 'gg-fgroup' }, h('span', { class: 'gg-flabel' }, t('f.date')), t('f.from'), dateIn('dateFrom'), t('f.to'), dateIn('dateTo', true),
         h('button', { class: 'gg-btn', onclick: () => { const q = f.query; S.filters = Object.assign({}, EMPTY, { query: q }); renderFilters(); relayout(); } }, t('f.reset')),
-        h('span', { class: 'gg-flabel' }, t('f.count', { n: S.shown.length, m: S.items.length }))),
+        el.count),
     );
   }
 
@@ -388,7 +405,7 @@ export function createGallery(root, host, { settings: initial = {}, onSettings =
     for (const p of d.removed) map.delete(p);
     for (const x of [...d.added, ...d.changed]) map.set(x.path, x);
     setItems([...map.values()]);
-    renderFilters();
+    refreshFilters();
     relayout();
   });
 

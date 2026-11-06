@@ -129,6 +129,27 @@ test('search, sort and filters in the window', async () => {
   } finally { await app.close(); }
 });
 
+test('law R10: a value being typed in a filter field survives previews arriving', async () => {
+  test.setTimeout(400000);
+  const { app, win } = await launch();
+  try {
+    const dir = require('./helpers').tmp('gg-typing-');
+    const src = ['orca.gcode', 'prusa.gcode', 'bambu.gcode', 'cura.gcode', 'elegoo.gcode', 'cube.stl'];
+    for (let i = 0; i < 400; i++) fs.copyFileSync(path.join(require('./helpers').FIX, src[i % 6]), path.join(dir, `${i}-${src[i % 6]}`));
+    await allow(win, dir);
+    await win.click('text=Фильтры');
+    await win.evaluate((d) => { window.galleryApp.gallery().openFolder(d); }, dir);
+    await win.waitForFunction(() => window.galleryApp.state().items === 400 && window.galleryApp.state().ready > 5);
+    const field = win.locator('.gg-filters input.gg-num').nth(2);
+    await field.click();
+    await win.keyboard.type('12', { delay: 50 });
+    expect(await win.evaluate(() => window.galleryApp.state().queue), 'previews still arriving while typing').toBeGreaterThan(50);
+    await win.waitForFunction(() => window.galleryApp.state().queue === 0, null, { timeout: 300000 });
+    await expect(win.locator('.gg-filters input.gg-num').nth(2)).toHaveValue('12');
+    await expect(win.locator('.gg-filters .gg-chip')).not.toHaveCount(0);
+  } finally { await app.close(); }
+});
+
 test('hover: a live 3D view over the tile, gone when the mouse leaves', async () => {
   const { app, win } = await launch();
   try {
